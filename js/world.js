@@ -1,0 +1,949 @@
+/* ===========================================================
+   world.js — a planta do escritório da Nassa Tech
+   Grade 48 x 34: um andar da torre na Faria Lima.
+   Sala do chefe, sala dos devs, sala de jogos, sala de reunião
+   e a circulação com recepção e elevadores.
+   A fachada (paredes norte e oeste) é pele de vidro: pela janela
+   aparece São Paulo, de dia ou de noite, conforme o relógio.
+   =========================================================== */
+const WORLD = (() => {
+
+  const W = 48, H = 34;
+
+  const VOID = 0, FLOOR = 1, WALL = 2, DOOR = 3;
+
+  /* ---------- paleta ---------- */
+  const C = {
+    fire1: '#7c6cff', fire2: '#9d8cff', fire3: '#f59e0b',
+    volt1: '#38bdf8', volt2: '#2563eb',
+    dark:  '#0b0d15', wall: '#1b2033', wallTop: '#2a3149'
+  };
+
+  /* ---------- salas ---------- */
+  /* piso: madeira (chefe), carpete em placas (devs e reunião),
+     vinílico escuro (jogos) e porcelanato acetinado (circulação) */
+  const ROOMS = {
+    diretoria: {
+      id: 'diretoria', name: 'SALA DO CHEFE', short: 'Chefe',
+      bx: 0, by: 0, bw: 15, bh: 19,
+      x1: 1, y1: 1, x2: 13, y2: 17,
+      accent: '#00b3ff', piso: 'madeira',
+      floorA: '#3a2618', floorB: '#432c1c',
+      desc: 'A sala do Gabriel. Painel ripado de madeira, quadro da BMW 335i E90, vista da Ponte Estaiada e estar com sofá.'
+    },
+    servico: {
+      id: 'servico', name: 'SALA DOS DEVS', short: 'Devs',
+      bx: 18, by: 0, bw: 30, bh: 19,
+      x1: 19, y1: 1, x2: 46, y2: 17,
+      accent: '#2f7bff', piso: 'carpete',
+      floorA: '#1a1f2a', floorB: '#1d2330',
+      desc: 'Onde o código acontece. 12 estações com monitor, painel da equipe, CI/CD ao vivo e vista para a Faria Lima.'
+    },
+    lounge: {
+      id: 'lounge', name: 'SALA DE JOGOS', short: 'Jogos',
+      bx: 0, by: 22, bw: 30, bh: 12,
+      x1: 1, y1: 23, x2: 28, y2: 32,
+      accent: '#c056ff', piso: 'vinilico',
+      floorA: '#1d1630', floorB: '#221a38',
+      desc: 'Fliperamas, sinuca, pebolim, videogame no telão, puffs e café. Separada da operação por vidro acústico.'
+    },
+    reuniao: {
+      id: 'reuniao', name: 'SALA DE REUNIÃO', short: 'Reunião',
+      bx: 32, by: 22, bw: 16, bh: 12,
+      x1: 33, y1: 23, x2: 46, y2: 32,
+      accent: '#22d3a6', piso: 'carpete',
+      floorA: '#22262f', floorB: '#252a34',
+      desc: 'Aquário de vidro com mesa para oito e telão. É aqui que acontecem as dailies e a reunião dos agentes.'
+    },
+    corredor: {
+      id: 'corredor', name: 'RECEPÇÃO & CIRCULAÇÃO', short: 'Corredor',
+      accent: '#64748b', piso: 'porcelanato',
+      floorA: '#2a2e36', floorB: '#2c3039',
+      desc: 'Hall dos elevadores, recepção com o logo da Nassa Tech e a circulação entre as salas.'
+    }
+  };
+
+  /* ---------- portas (x, y, orientação) ---------- */
+  const DOORS = [
+    { x: 14, y: 8,  o: 'v' }, { x: 14, y: 9,  o: 'v' },   // diretoria -> hall vertical
+    { x: 5,  y: 18, o: 'h' }, { x: 6,  y: 18, o: 'h' },   // diretoria -> corredor
+    { x: 18, y: 8,  o: 'v' }, { x: 18, y: 9,  o: 'v' },   // serviço  -> hall vertical
+    { x: 30, y: 18, o: 'h' }, { x: 31, y: 18, o: 'h' },   // serviço  -> corredor
+    { x: 13, y: 22, o: 'h' }, { x: 14, y: 22, o: 'h' },   // lounge   -> corredor
+    { x: 24, y: 22, o: 'h' }, { x: 25, y: 22, o: 'h' },   // lounge   -> corredor (2ª porta)
+    { x: 38, y: 22, o: 'h' }, { x: 39, y: 22, o: 'h' }    // reunião  -> corredor
+  ];
+
+  /* ---------- grade ---------- */
+  const kind   = new Uint8Array(W * H);
+  const roomOf = new Array(W * H).fill(null);
+  const blocked = new Uint8Array(W * H);   // móveis ocupando o tile
+
+  const idx = (x, y) => y * W + x;
+  const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+
+  function buildGrid() {
+    kind.fill(FLOOR);
+    for (let i = 0; i < W * H; i++) roomOf[i] = 'corredor';
+
+    // anel externo
+    for (let x = 0; x < W; x++) { kind[idx(x, 0)] = WALL; kind[idx(x, H - 1)] = WALL; }
+    for (let y = 0; y < H; y++) { kind[idx(0, y)] = WALL; kind[idx(W - 1, y)] = WALL; }
+
+    // faixa morta entre as salas de baixo e as de cima já é corredor (y 19..21)
+
+    for (const r of Object.values(ROOMS)) {
+      if (r.bw === undefined) continue;
+      const x0 = r.bx, y0 = r.by, x1 = r.bx + r.bw - 1, y1 = r.by + r.bh - 1;
+      for (let x = x0; x <= x1; x++) {
+        for (let y = y0; y <= y1; y++) {
+          if (!inside(x, y)) continue;
+          const borda = (x === x0 || x === x1 || y === y0 || y === y1);
+          if (borda) { kind[idx(x, y)] = WALL; roomOf[idx(x, y)] = r.id; }
+          else       { kind[idx(x, y)] = FLOOR; roomOf[idx(x, y)] = r.id; }
+        }
+      }
+    }
+
+    for (const d of DOORS) if (inside(d.x, d.y)) kind[idx(d.x, d.y)] = DOOR;
+
+    // elevador / entrada na parede leste do corredor
+    kind[idx(W - 1, 20)] = WALL;
+  }
+  buildGrid();
+
+  const kindAt  = (x, y) => inside(x, y) ? kind[idx(x, y)] : VOID;
+  const roomAt  = (x, y) => inside(x, y) ? roomOf[idx(x, y)] : null;
+  const isWall  = (x, y) => kindAt(x, y) === WALL;
+
+  /** o tile dá para pisar? (usado pelo A*) */
+  function walkable(x, y) {
+    if (!inside(x, y)) return false;
+    const k = kind[idx(x, y)];
+    return (k === FLOOR || k === DOOR) && !blocked[idx(x, y)];
+  }
+  function setBlocked(x, y, v = 1) {
+    if (inside(x, y)) blocked[idx(x, y)] = v;
+  }
+
+  /* ---------- alturas de parede ----------
+     Uma parede que tem chão ATRÁS dela (em x-1 ou y-1) taparia
+     a visão: ela vira parapeito sólido + vidro fumê por cima.
+     As demais sobem inteiras e viram painel de LED / logo.        */
+  const WALL_H = 108, PARAPET = 40;
+
+  function wallOccludes(x, y) {
+    const a = kindAt(x - 1, y), b = kindAt(x, y - 1);
+    return a === FLOOR || a === DOOR || b === FLOOR || b === DOOR;
+  }
+
+  /* ---------- painéis nas paredes altas ---------- */
+  const SIGNS = [
+    { o: 'n', x: 5,  y: 0,  len: 5,  kind: 'bmw'      },  // chefe: o quadro da BMW
+    { o: 'w', x: 0,  y: 9,  len: 5,  kind: 'quadro'   },  // chefe: quadro de ideias
+    { o: 'w', x: 0,  y: 14, len: 4,  kind: 'eventos'  },  // chefe: próximos eventos
+    { o: 'n', x: 20, y: 0,  len: 9,  kind: 'equipe'   },  // devs: a equipe agora
+    { o: 'n', x: 31, y: 0,  len: 8,  kind: 'logo'     },  // devs: logo adesivado no vidro
+    { o: 'n', x: 41, y: 0,  len: 5,  kind: 'pipeline' },  // devs: CI/CD da branch main
+    { o: 'w', x: 0,  y: 24, len: 7,  kind: 'play'     }   // jogos: letreiro neon
+  ];
+
+  /* ---------- acabamento das paredes externas ----------
+     vidro   = pele de vidro do prédio, com a cidade atrás
+     ripado  = painel de madeira ripada (sala do chefe)
+     acustico= painel acústico de feltro (sala de jogos)          */
+  function material(x, y, o) {
+    if (o === 'n' && y === 0) return (x >= 1 && x <= 13) ? 'ripado' : 'vidro';
+    if (o === 'w' && x === 0) {
+      if (y >= 9 && y <= 17)  return 'ripado';
+      if (y >= 23 && y <= 32) return 'acustico';
+      return 'vidro';
+    }
+    return null;
+  }
+  const BRILHO_SALA = id => id === 'lounge';   // só a sala de jogos fica arco-íris
+
+  /* ===========================================================
+     DESENHO
+     =========================================================== */
+
+  /** superfície de parede em espaço "u (px ao longo) × v (px para baixo)" */
+  function wallFace(ctx, orient, x, y, lenTiles, topZ, fn) {
+    const T = ISO.TW;
+    let o, a, b;
+    if (orient === 'n') {                       // face virada para +y
+      o = ISO.toScreen(x, y + 1, topZ);
+      a =  ISO.HW / T; b =  ISO.HH / T;
+    } else {                                    // 'w' — face virada para +x
+      // começa na ponta de baixo e cresce subindo à direita;
+      // pelo outro lado o texto sairia espelhado
+      o = ISO.toScreen(x + 1, y + lenTiles, topZ);
+      a =  ISO.HW / T; b = -ISO.HH / T;
+    }
+    ctx.save();
+    ctx.transform(a, b, 0, 1, o.x, o.y);
+    fn(ctx, lenTiles * T);
+    ctx.restore();
+  }
+
+  /* ---- chão ----
+     O piso é fixo: 1632 losangos por quadro era desperdício puro. Ele é
+     pintado uma vez num canvas próprio e depois só copiado; só o brilho
+     RGB refletido continua sendo calculado a cada quadro.                */
+  let pisoCache = null;
+  function montaPiso() {
+    const x0 = ISO.toScreen(0, H - 1).x - ISO.TW;
+    const x1 = ISO.toScreen(W - 1, 0).x + ISO.TW;
+    const y0 = ISO.toScreen(0, 0).y - 4;
+    const y1 = ISO.toScreen(W, H).y + LAJE + 8;
+    const cv = document.createElement('canvas');
+    cv.width  = Math.ceil(x1 - x0);
+    cv.height = Math.ceil(y1 - y0);
+    const c = cv.getContext('2d');
+    c.translate(-x0, -y0);
+
+    desenhaLaje(c);
+
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const k = kind[idx(x, y)];
+        if (k !== FLOOR && k !== DOOR) continue;
+        const r = ROOMS[roomOf[idx(x, y)]] || ROOMS.corredor;
+        if (k === DOOR) { ISO.tile(c, x, y, '#3a3f49', 'rgba(255,255,255,.05)'); continue; }
+        pisoTile(c, x, y, r);
+      }
+    }
+    // faixa de piso com o azul da marca: guia do elevador até as salas
+    c.save();
+    for (let x = 2; x <= 45; x++) {
+      if (walkable(x, 20) && roomAt(x, 20) === 'corredor')
+        ISO.plane(c, x, 20.42, 1, .16, 0, ISO.rgba('#00b3ff', .22));
+    }
+    c.restore();
+    pisoCache = { cv, x: x0, y: y0 };
+  }
+
+  /** hash estável por tile, para variar tábua e placa sem piscar */
+  const hash = (x, y) => {
+    let h = (x * 374761393 + y * 668265263) >>> 0;
+    h = (h ^ (h >>> 13)) * 1274126177 >>> 0;
+    return (h & 0xffff) / 0xffff;
+  };
+
+  function pisoTile(c, x, y, r) {
+    const P = ISO.toScreen;
+    if (r.piso === 'madeira') {
+      // assoalho de madeira escura em réguas, com emendas desencontradas
+      const tons = ['#3b2719', '#422b1b', '#46301f', '#3f2a1c', '#4a3322'];
+      for (let i = 0; i < 3; i++) {
+        const cor = tons[Math.floor(hash(x, y * 3 + i) * tons.length)];
+        ISO.plane(c, x, y + i / 3, 1, 1 / 3, 0, cor);
+        c.strokeStyle = 'rgba(0,0,0,.28)'; c.lineWidth = .8;
+        const a = P(x, y + i / 3), b = P(x + 1, y + i / 3);
+        c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+        // emenda de topo
+        const e = (hash(y * 3 + i, x) * .8 + .1);
+        if (((x + i) % 2) === 0) {
+          const q1 = P(x + e, y + i / 3), q2 = P(x + e, y + (i + 1) / 3);
+          c.strokeStyle = 'rgba(0,0,0,.22)';
+          c.beginPath(); c.moveTo(q1.x, q1.y); c.lineTo(q2.x, q2.y); c.stroke();
+        }
+        // veio da madeira
+        c.strokeStyle = 'rgba(255,220,180,.035)';
+        const v1 = P(x + .1, y + i / 3 + .16), v2 = P(x + .9, y + i / 3 + .16);
+        c.beginPath(); c.moveTo(v1.x, v1.y); c.lineTo(v2.x, v2.y); c.stroke();
+      }
+      return;
+    }
+    if (r.piso === 'carpete') {
+      // placas de carpete 50x50 assentadas em "parquet" (direção alternada)
+      const alt = ((x + y) & 1);
+      ISO.tile(c, x, y, alt ? r.floorA : r.floorB, 'rgba(0,0,0,.18)');
+      c.strokeStyle = 'rgba(255,255,255,.022)'; c.lineWidth = .7;
+      for (let i = 1; i < 6; i++) {
+        const f = i / 6;
+        const a = alt ? P(x + f, y) : P(x, y + f), b = alt ? P(x + f, y + 1) : P(x + 1, y + f);
+        c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+      }
+      return;
+    }
+    if (r.piso === 'porcelanato') {
+      // porcelanato grande (1 placa = 2x2 tiles) com rejunte fino
+      const v = hash(x >> 1, y >> 1) * .035;
+      ISO.tile(c, x, y, ISO.shade(r.floorA, v), null);
+      c.strokeStyle = 'rgba(0,0,0,.32)'; c.lineWidth = .8;
+      if (x % 2 === 0) { const a = P(x, y), b = P(x, y + 1); c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); }
+      if (y % 2 === 0) { const a = P(x, y), b = P(x + 1, y); c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); }
+      // brilho acetinado
+      ISO.plane(c, x + .1, y + .1, .8, .8, 0, 'rgba(255,255,255,.012)');
+      return;
+    }
+    // vinílico da sala de jogos: escuro com faixas finas de neon
+    ISO.tile(c, x, y, ((x + y) & 1) ? r.floorA : r.floorB, 'rgba(255,255,255,.02)');
+    if ((x + y) % 7 === 0) ISO.plane(c, x + .45, y, .1, 1, 0, 'rgba(192,86,255,.10)');
+  }
+
+  /* ---- laje: a borda do andar, com o andar de baixo sumindo no vidro ----
+     É o que faz o escritório parecer uma fatia da torre, e não um tabuleiro
+     solto no fundo.                                                       */
+  const LAJE = 150;
+  function desenhaLaje(c) {
+    const P = ISO.toScreen;
+    // concreto da laje
+    ISO.quad(c, [P(0, H, 0), P(W, H, 0), P(W, H, -16), P(0, H, -16)], '#3a404b');
+    ISO.quad(c, [P(W, 0, 0), P(W, H, 0), P(W, H, -16), P(W, 0, -16)], '#2c313a');
+    // fachada de vidro do andar de baixo, esmaecendo
+    const fachada = (pts, escura) => {
+      const g = c.createLinearGradient(0, pts[0].y, 0, pts[0].y + LAJE);
+      g.addColorStop(0, escura ? 'rgba(40,62,92,.85)' : 'rgba(58,86,122,.85)');
+      g.addColorStop(1, 'rgba(10,14,24,0)');
+      ISO.quad(c, pts, g);
+    };
+    fachada([P(0, H, -16), P(W, H, -16), P(W, H, -16 - LAJE), P(0, H, -16 - LAJE)], false);
+    fachada([P(W, 0, -16), P(W, H, -16), P(W, H, -16 - LAJE), P(W, 0, -16 - LAJE)], true);
+    // montantes da fachada
+    c.save();
+    for (let x = 0; x <= W; x += 1.5) {
+      const a = P(x, H, -16), b = P(x, H, -16 - LAJE * .8);
+      const g = c.createLinearGradient(0, a.y, 0, b.y);
+      g.addColorStop(0, 'rgba(200,215,235,.35)'); g.addColorStop(1, 'rgba(200,215,235,0)');
+      c.strokeStyle = g; c.lineWidth = 1.2;
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+    }
+    for (let y = 0; y <= H; y += 1.5) {
+      const a = P(W, y, -16), b = P(W, y, -16 - LAJE * .8);
+      const g = c.createLinearGradient(0, a.y, 0, b.y);
+      g.addColorStop(0, 'rgba(170,190,215,.28)'); g.addColorStop(1, 'rgba(170,190,215,0)');
+      c.strokeStyle = g; c.lineWidth = 1.2;
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+    }
+    // linha da laje do andar de baixo
+    c.strokeStyle = 'rgba(160,175,200,.18)'; c.lineWidth = 3;
+    let a = P(0, H, -16 - 108), b = P(W, H, -16 - 108);
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+    a = P(W, 0, -16 - 108); b = P(W, H, -16 - 108);
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+    // aresta clara do piso acabado
+    c.strokeStyle = 'rgba(220,230,245,.35)'; c.lineWidth = 1.2;
+    a = P(0, H, 0); b = P(W, H, 0); const d = P(W, 0, 0);
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.lineTo(d.x, d.y); c.stroke();
+    c.restore();
+  }
+
+  function drawFloor(ctx, t) {
+    if (!pisoCache) montaPiso();
+    ctx.drawImage(pisoCache.cv, pisoCache.x, pisoCache.y);
+
+    // luz da cidade entrando pela fachada + LED da marca refletido no piso
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const luzDia = 1 - NASSA.noite();
+    for (let x = ROOMS.servico.x1; x <= ROOMS.servico.x2; x += 7) {
+      const p = ISO.toScreen(x, 1.5);
+      ISO.glow(ctx, p.x, p.y, 120, NASSA.led(t, x), .06);
+      if (luzDia > .05) ISO.glow(ctx, p.x, p.y + 30, 150, '#cfe3ff', .05 * luzDia);
+    }
+    for (let y = 2; y <= 8; y += 5) {
+      const p = ISO.toScreen(1.5, y);
+      if (luzDia > .05) ISO.glow(ctx, p.x, p.y, 130, '#ffe9c8', .06 * luzDia);
+    }
+    for (let x = ROOMS.lounge.x1; x <= ROOMS.lounge.x2; x += 8) {
+      const p = ISO.toScreen(x, 28);
+      const hue = (t * 44 + x * 26) % 360;
+      ISO.glow(ctx, p.x, p.y, 150, ISO.hsl(hue, 95, 58), .07);
+    }
+    ctx.restore();
+  }
+
+  /* ---- rótulo flutuante de cada sala ---- */
+  function drawRoomLabels(ctx) {
+    const put = (r, cx, cy) => {
+      const p = ISO.toScreen(cx, cy, 0);
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = '600 13px Barlow Semi Condensed, sans-serif';
+      ctx.fillStyle = ISO.rgba(r.accent, .34);
+      ctx.letterSpacing = '4px';
+      ctx.fillText(r.name, p.x, p.y);
+      ctx.restore();
+    };
+    put(ROOMS.diretoria, 7, 15.4);
+    put(ROOMS.servico, 33, 16.2);
+    put(ROOMS.lounge, 14.5, 31.6);
+    put(ROOMS.reuniao, 40, 31.4);
+  }
+
+  const cacheGrad = new Map();
+
+  /* ---- texturas das paredes externas (pintadas uma vez) ---- */
+  const cacheTextura = new Map();
+  function textura(tipo) {
+    let cv = cacheTextura.get(tipo);
+    if (cv) return cv;
+    const T = ISO.TW, ESC = 2;
+    cv = document.createElement('canvas');
+    cv.width = T * ESC; cv.height = WALL_H * ESC;
+    const c = cv.getContext('2d');
+    c.scale(ESC, ESC);
+    if (tipo === 'ripado') {
+      // ripas verticais de madeira escura com frisos pretos
+      const g = c.createLinearGradient(0, 0, 0, WALL_H);
+      g.addColorStop(0, '#5a3d27'); g.addColorStop(1, '#3a2617');
+      c.fillStyle = '#120c08'; c.fillRect(0, 0, T, WALL_H);
+      for (let x = 0; x < T; x += 5.333) {
+        c.fillStyle = g; c.fillRect(x + .9, 0, 3.6, WALL_H);
+        c.fillStyle = 'rgba(255,225,190,.07)'; c.fillRect(x + .9, 0, 1, WALL_H);
+      }
+      // rodapé embutido
+      c.fillStyle = '#0d0a08'; c.fillRect(0, WALL_H - 5, T, 5);
+    } else if (tipo === 'acustico') {
+      // painel acústico de feltro em placas hexagonais
+      c.fillStyle = '#211830'; c.fillRect(0, 0, T, WALL_H);
+      const r = 9;
+      for (let row = 0, y = 4; y < WALL_H + r; row++, y += r * 1.5) {
+        for (let x = (row % 2) * r * .87; x < T + r; x += r * 1.74) {
+          c.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const a = Math.PI / 6 + i * Math.PI / 3;
+            c.lineTo(x + Math.cos(a) * (r - 1), y + Math.sin(a) * (r - 1));
+          }
+          c.closePath();
+          c.fillStyle = ['#2a1f3d', '#30234a', '#261c37'][(row + Math.round(x)) % 3];
+          c.fill();
+        }
+      }
+      c.fillStyle = '#120d1b'; c.fillRect(0, WALL_H - 5, T, 5);
+    }
+    cacheTextura.set(tipo, cv);
+    return cv;
+  }
+
+  /** um painel de vidro da fachada: cidade atrás, caixilho e reflexo */
+  function janela(ctx, o, x, y, t) {
+    const T = ISO.TW;
+    const len = (o === 'n' ? W : H) * T;
+    const pan = NASSA.panorama(o, len, WALL_H);
+    const off = o === 'n' ? x * T : (H - 1 - y) * T;
+    const esc = pan.width / len;
+    wallFace(ctx, o, x, y, 1, WALL_H, (c) => {
+      c.drawImage(pan, off * esc, 0, T * esc, WALL_H * esc, 0, 0, T, WALL_H);
+      // película e reflexo do vidro
+      c.fillStyle = 'rgba(120,170,220,.10)'; c.fillRect(0, 0, T, WALL_H);
+      c.fillStyle = 'rgba(255,255,255,.05)';
+      c.beginPath(); c.moveTo(T * .15, 0); c.lineTo(T * .45, 0); c.lineTo(T * .05, WALL_H); c.lineTo(0, WALL_H); c.lineTo(0, WALL_H * .55); c.closePath(); c.fill();
+      // caixilho: montante, travessa baixa e peitoril
+      c.fillStyle = '#c4ccd8'; c.fillRect(0, 0, 2.2, WALL_H);
+      c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(2.2, 0, 1, WALL_H);
+      c.fillStyle = '#aab3c0'; c.fillRect(0, WALL_H - 14, T, 2);
+      c.fillStyle = '#1b1f27'; c.fillRect(0, WALL_H - 6, T, 6);
+      c.fillStyle = '#d4dbe5'; c.fillRect(0, 0, T, 3);
+    });
+  }
+
+  /* ---- uma parede ---- */
+  function drawWallTile(ctx, x, y, t, rgbOn, zoom) {
+    // afastado, o vidro fumê da divisória some em menos de um pixel
+    const detalhe = (zoom === undefined || zoom > 0.7);
+    const occ  = wallOccludes(x, y);
+    const room = ROOMS[roomOf[idx(x, y)]] || ROOMS.corredor;
+    const h    = occ ? PARAPET : WALL_H;
+    const arco = BRILHO_SALA(room.id);
+    const corLed = (k) => arco ? ISO.hsl((t * 34 + k * 11) % 360, 92, 58) : NASSA.led(t, k);
+
+    const showLeft  = !isWall(x, y + 1);   // face virada para +y
+    const showRight = !isWall(x + 1, y);   // face virada para +x
+    if (!showLeft && !showRight) {
+      ISO.plane(ctx, x, y, 1, 1, WALL_H, C.wallTop);
+      return;
+    }
+
+    const P = ISO.toScreen;
+    const base = C.wall;
+
+    const faces = [];
+    if (showLeft)  faces.push({ o: 'n', pts: [P(x, y+1, h), P(x+1, y+1, h), P(x+1, y+1, 0), P(x, y+1, 0)], sh: -0.05 });
+    if (showRight) faces.push({ o: 'w', pts: [P(x+1, y, h), P(x+1, y+1, h), P(x+1, y+1, 0), P(x+1, y, 0)], sh: -0.3  });
+
+    let externa = false;
+    for (const f of faces) {
+      const mat = occ ? null : material(x, y, f.o);
+      if (mat === 'vidro') { janela(ctx, f.o, x, y, t); externa = true; continue; }
+      if (mat) {
+        const tx = textura(mat);
+        wallFace(ctx, f.o, x, y, 1, WALL_H, (c) => c.drawImage(tx, 0, 0, ISO.TW, WALL_H));
+        if (f.o === 'w') ISO.quad(ctx, f.pts, 'rgba(0,0,0,.28)');   // face lateral mais escura
+        externa = true;
+        continue;
+      }
+      // corpo
+      // as coordenadas da face são fixas em espaço de mundo, então o
+      // gradiente pode ser criado uma vez só por tile
+      const ck = x + ',' + y + ',' + f.o;
+      let g = cacheGrad.get(ck);
+      if (!g) {
+        g = ctx.createLinearGradient(0, f.pts[0].y, 0, f.pts[2].y);
+        g.addColorStop(0, ISO.shade(base, f.sh + 0.06));
+        g.addColorStop(1, ISO.shade(base, f.sh - 0.28));
+        cacheGrad.set(ck, g);
+      }
+      ISO.quad(ctx, f.pts, g);
+
+      // rodapé com fita de LED
+      if (rgbOn) {
+        const neon = corLed(x + y);
+        const strip = [
+          f.pts[3], f.pts[2],
+          { x: f.pts[2].x, y: f.pts[2].y - 5 },
+          { x: f.pts[3].x, y: f.pts[3].y - 5 }
+        ];
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ISO.quad(ctx, strip, ISO.rgba(neon, .55));
+        ctx.restore();
+      }
+    }
+
+    // topo
+    ISO.plane(ctx, x, y, 1, 1, h, occ ? ISO.rgba('#8fa4d8', .28) : (externa ? '#9aa4b2' : C.wallTop));
+
+    if (occ && detalhe) {
+      // vidro fumê acima do parapeito
+      for (const f of faces) {
+        const top = [
+          P(f.o === 'n' ? x : x + 1, f.o === 'n' ? y + 1 : y,     WALL_H),
+          P(x + 1, y + 1, WALL_H),
+          P(x + 1, y + 1, h),
+          P(f.o === 'n' ? x : x + 1, f.o === 'n' ? y + 1 : y,     h)
+        ];
+        ISO.quad(ctx, top, ISO.rgba('#9fc4ff', .085));
+        ISO.quad(ctx, top, null, ISO.rgba('#bcd8ff', .12));
+      }
+      ISO.plane(ctx, x, y, 1, 1, WALL_H, ISO.rgba(room.accent, rgbOn ? .16 : .08));
+    }
+
+    // trilho de LED no topo da parede — é a cara do lugar, nunca some
+    if (rgbOn) {
+      const neon = corLed(x + y);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      // a fita já brilha sozinha; um glow radial por tile custava mais
+      // área pintada que a tela inteira, várias vezes por quadro
+      ISO.plane(ctx, x + .02, y + .02, .96, .96, WALL_H + 2, ISO.rgba(neon, externa ? .3 : (arco ? .55 : .38)));
+      ctx.restore();
+    }
+
+    drawSignTile(ctx, x, y, t, rgbOn);
+  }
+
+  /**
+   * Fatia da placa que pertence a este tile de parede.
+   * Uma placa larga tem uma profundidade só; se ela fosse um item solto na
+   * ordenação, os tiles de parede depois dela pintariam por cima e a placa
+   * parecia enfiada dentro da parede. Recortando por tile, cada pedaço é
+   * pintado junto com a sua própria parede.
+   */
+  function drawSignTile(ctx, x, y, t, rgbOn) {
+    for (const s of SIGNS) {
+      const cobre = s.o === 'n'
+        ? (s.y === y && x >= s.x && x < s.x + s.len)
+        : (s.x === x && y >= s.y && y < s.y + s.len);
+      if (!cobre) continue;
+
+      // recorte por clip custava caro; agora copia só a fatia da placa que
+      // é deste tile, direto do canvas em cache
+      const T = ISO.TW;
+      const off = s.o === 'n' ? (x - s.x) * T
+                              : (s.y + s.len - 1 - y) * T;
+      const cv = placaCanvas(s, t, rgbOn);
+      wallFace(ctx, s.o, x, y, 1, WALL_H, (c) =>
+        c.drawImage(cv, off * ESC_PLACA, 0, T * ESC_PLACA, WALL_H * ESC_PLACA, 0, 0, T, WALL_H));
+    }
+  }
+
+  /* ---- porta ---- */
+  function drawDoorTile(ctx, x, y, t) {
+    const d = DOORS.find(d => d.x === x && d.y === y);
+    if (!d) return;
+    const neon = BRILHO_SALA(roomAt(x, y + (d.o === 'h' ? 1 : 0)))
+      ? ISO.hsl((t * 34 + (x + y) * 11) % 360, 95, 60)
+      : NASSA.led(t, x + y);
+    const P = ISO.toScreen;
+    const h = 96;
+
+    // batentes laterais
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    if (d.o === 'h') {
+      ISO.quad(ctx, [P(x, y+1, h), P(x+1, y+1, h), P(x+1, y+1, h-4), P(x, y+1, h-4)], ISO.rgba(neon, .65));
+    } else {
+      ISO.quad(ctx, [P(x+1, y, h), P(x+1, y+1, h), P(x+1, y+1, h-4), P(x+1, y, h-4)], ISO.rgba(neon, .65));
+    }
+    const c = ISO.toScreen(x + .5, y + .5, 30);
+    ISO.glow(ctx, c.x, c.y, 62, neon, .18);
+    ctx.restore();
+  }
+
+  /** profundidade do painel, para ele entrar na ordenação junto com
+      móveis e bonecos — senão ele seria pintado por cima de todo mundo */
+  function signDepth(s) {
+    return s.o === 'n' ? (s.x + s.len / 2) + (s.y + 1)
+                       : (s.x + 1) + (s.y + s.len / 2);
+  }
+
+  /* ---- conteúdo de uma placa, em espaço plano de parede ---- */
+  function pintaPlaca(c, s, len, t, rgbOn) {
+    if (s.kind === 'nome') {
+      const padY = 16, hgt = 62;
+      c.fillStyle = 'rgba(4,5,10,.62)';
+      ISO.rrect(c, 6, padY, len - 12, hgt, 8); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.07)'; c.lineWidth = 1; c.stroke();
+      signNome(c, len, padY, hgt, rgbOn);
+    }
+    else if (s.kind === 'equipe')   signEquipe(c, len, t, rgbOn);
+    else if (s.kind === 'eventos')  signEventos(c, len, rgbOn);
+    else if (s.kind === 'quadro')   signQuadro(c, len);
+    else if (s.kind === 'bmw')      signBmw(c, len, rgbOn);
+    else if (s.kind === 'logo')     signLogo(c, len, rgbOn);
+    else if (s.kind === 'pipeline') signPipeline(c, len, t, rgbOn);
+    else if (s.kind === 'play')     signPlay(c, len, t, rgbOn);
+  }
+
+  /* placas paradas só repintam quando algo nelas muda */
+  const PLACA_FIXA = {
+    bmw:  () => BMW.cor,
+    logo: () => NASSA.pronto(NASSA.logo) ? 'ok' : 'carregando'
+  };
+  const ESC_PLACA = 2;     // pintadas em 2x para continuarem nítidas no zoom
+
+  /* Cada placa é pintada uma vez num canvas próprio e depois só é COPIADA
+     para cada tile de parede. Antes ela era redesenhada inteira por tile —
+     50 desenhos completos por quadro, vários com shadowBlur, e era daí que
+     vinha quase toda a lentidão.                                          */
+  const cachePlaca = new Map();
+  function placaCanvas(s, t, rgbOn) {
+    let c = cachePlaca.get(s);
+    if (!c) {
+      const cv = document.createElement('canvas');
+      cv.width = Math.ceil(s.len * ISO.TW * ESC_PLACA); cv.height = WALL_H * ESC_PLACA;
+      c = { cv, ctx: cv.getContext('2d'), t: -1e9, rgb: null, ver: null };
+      cachePlaca.set(s, c);
+    }
+    const fixa = PLACA_FIXA[s.kind];
+    const ver = fixa ? fixa() : null;
+    // repinta no máximo ~6x por segundo; o olho não vê diferença
+    const vencida = fixa ? (c.ver !== ver) : (t - c.t > 0.16 || c.t > t);
+    if (vencida || c.rgb !== rgbOn) {
+      c.t = t; c.rgb = rgbOn; c.ver = ver;
+      c.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      c.ctx.clearRect(0, 0, c.cv.width, c.cv.height);
+      c.ctx.setTransform(ESC_PLACA, 0, 0, ESC_PLACA, 0, 0);
+      pintaPlaca(c.ctx, s, s.len * ISO.TW, t, rgbOn);
+    }
+    return c.cv;
+  }
+
+  /* ---- logos e painéis nas paredes altas ---- */
+  function drawSigns(ctx, t, rgbOn, lista) {
+    for (const s of (lista || SIGNS)) {
+      const cv = placaCanvas(s, t, rgbOn);
+      wallFace(ctx, s.o, s.x, s.y, s.len, WALL_H, (c) => c.drawImage(cv, 0, 0, s.len * ISO.TW, WALL_H));
+    }
+  }
+
+  /* ---- painel da equipe: quem está trabalhando agora ---- */
+  function signEquipe(c, len, t, rgbOn) {
+    const x0 = 8, y0 = 12, w = len - 16, h = 84;
+    c.fillStyle = 'rgba(5,7,13,.88)';
+    ISO.rrect(c, x0, y0, w, h, 8); c.fill();
+    c.strokeStyle = 'rgba(56,189,248,.35)'; c.lineWidth = 1.4; c.stroke();
+
+    c.textBaseline = 'middle'; c.textAlign = 'left';
+    c.font = "700 11px 'Barlow Semi Condensed', sans-serif";
+    c.fillStyle = '#38bdf8'; c.letterSpacing = '2px';
+    c.fillText('EQUIPE AGORA', x0 + 12, y0 + 12);
+    c.letterSpacing = '0px';
+    c.strokeStyle = 'rgba(255,255,255,.09)';
+    c.beginPath(); c.moveTo(x0 + 10, y0 + 22); c.lineTo(x0 + w - 10, y0 + 22); c.stroke();
+
+    const RO = (typeof ROSTER !== 'undefined') ? ROSTER : null;
+    const SI = (typeof SISTEMAS !== 'undefined') ? SISTEMAS : null;
+    const n = st => RO ? RO.count(st) : 0;
+    const noAr = SI ? SI.todos().filter(s => s.estado === 'no ar' || s.estado === 'web').length : 0;
+    const cels = [
+      { r: 'TRABALHANDO', v: String(n('trabalhando') + n('reuniao')), cor: '#23e08a' },
+      { r: 'DESCANSO',    v: String(n('descanso')),                   cor: '#c4b8ff' },
+      { r: 'OFFLINE',     v: String(n('offline')),                    cor: '#8b93ad' },
+      { r: 'SISTEMAS',    v: String(noAr),                            cor: '#38bdf8' }
+    ];
+    const cw = (w - 20) / cels.length;
+    cels.forEach((cel, i) => {
+      const cx = x0 + 10 + i * cw;
+      if (i) {
+        c.strokeStyle = 'rgba(255,255,255,.07)';
+        c.beginPath(); c.moveTo(cx - 2, y0 + 28); c.lineTo(cx - 2, y0 + h - 8); c.stroke();
+      }
+      c.textAlign = 'left';
+      c.font = "600 8.5px 'Barlow Semi Condensed', sans-serif";
+      c.fillStyle = 'rgba(180,190,215,.75)';
+      c.fillText(cel.r, cx + 8, y0 + 36);
+      c.font = "700 20px 'Barlow', sans-serif";
+      c.fillStyle = cel.cor;
+      if (rgbOn) { c.shadowColor = ISO.rgba(cel.cor, .8); c.shadowBlur = 12; }
+      c.fillText(cel.v, cx + 8, y0 + 56);
+      c.shadowBlur = 0;
+      const amp = rgbOn ? (.45 + .55 * Math.abs(Math.sin(t * 1.1 + i))) : .7;
+      c.fillStyle = ISO.rgba(cel.cor, .5);
+      c.fillRect(cx + 8, y0 + 66, (cw - 24) * amp, 2.5);
+    });
+  }
+
+  /* ---- agenda de eventos da diretoria ---- */
+  function signEventos(c, len, rgbOn) {
+    const evs = (typeof QUADRO !== 'undefined') ? QUADRO.eventos() : [];
+    const x0 = 8, y0 = 12, w = len - 16, h = 84;
+
+    c.fillStyle = 'rgba(5,7,13,.9)';
+    ISO.rrect(c, x0, y0, w, h, 8); c.fill();
+    c.strokeStyle = 'rgba(56,189,248,.32)'; c.lineWidth = 1.4; c.stroke();
+
+    c.textBaseline = 'middle'; c.textAlign = 'left';
+    c.font = "700 11px 'Barlow Semi Condensed', sans-serif";
+    c.fillStyle = '#38bdf8'; c.letterSpacing = '2px';
+    if (rgbOn) { c.shadowColor = 'rgba(56,189,248,.7)'; c.shadowBlur = 10; }
+    c.fillText('PRÓXIMOS EVENTOS', x0 + 12, y0 + 13);
+    c.shadowBlur = 0; c.letterSpacing = '0px';
+    c.strokeStyle = 'rgba(255,255,255,.09)';
+    c.beginPath(); c.moveTo(x0 + 10, y0 + 23); c.lineTo(x0 + w - 10, y0 + 23); c.stroke();
+
+    if (!evs.length) {
+      c.font = "600 10px 'Barlow Semi Condensed', sans-serif";
+      c.fillStyle = 'rgba(150,160,190,.6)';
+      c.fillText('nenhum evento marcado', x0 + 14, y0 + 42);
+      return;
+    }
+    evs.slice(0, 4).forEach((e, i) => {
+      const ry = y0 + 36 + i * 15;
+      c.font = "700 10px 'Barlow', sans-serif";
+      c.fillStyle = '#c4b8ff';
+      c.fillText(e.data, x0 + 14, ry);
+      c.font = "600 10px 'Barlow Semi Condensed', sans-serif";
+      c.fillStyle = '#e4e9f6';
+      c.fillText(e.nome, x0 + 58, ry);
+      c.textAlign = 'right';
+      c.font = "600 8.5px 'Barlow Semi Condensed', sans-serif";
+      c.fillStyle = 'rgba(56,189,248,.8)';
+      c.fillText(e.tipo, x0 + w - 14, ry);
+      c.textAlign = 'left';
+    });
+  }
+
+  /* ---- quadro branco de ideias ---- */
+  function signQuadro(c, len) {
+    const ideias = (typeof QUADRO !== 'undefined') ? QUADRO.ideias() : [];
+    const x0 = 10, y0 = 10, w = len - 20, h = 88;
+
+    // moldura de alumínio
+    c.fillStyle = '#5b6377';
+    ISO.rrect(c, x0 - 3, y0 - 3, w + 6, h + 6, 5); c.fill();
+    // superfície branca
+    const g = c.createLinearGradient(0, y0, 0, y0 + h);
+    g.addColorStop(0, '#f6f8fb'); g.addColorStop(1, '#dde3ec');
+    c.fillStyle = g;
+    ISO.rrect(c, x0, y0, w, h, 3); c.fill();
+    // reflexo
+    c.fillStyle = 'rgba(255,255,255,.55)';
+    c.beginPath();
+    c.moveTo(x0 + w * .55, y0); c.lineTo(x0 + w, y0);
+    c.lineTo(x0 + w, y0 + h * .5); c.closePath(); c.fill();
+
+    c.textBaseline = 'middle'; c.textAlign = 'left';
+    c.font = "700 11px 'Barlow Semi Condensed', sans-serif";
+    c.fillStyle = '#d8342a'; c.letterSpacing = '1.5px';
+    c.fillText('IDEIAS', x0 + 12, y0 + 14);
+    c.letterSpacing = '0px';
+    c.font = "600 8px 'Barlow Semi Condensed', sans-serif";
+    c.fillStyle = 'rgba(70,80,100,.7)';
+    c.fillText('botão 📌 Quadro', x0 + 58, y0 + 14);
+    c.strokeStyle = 'rgba(216,52,42,.5)'; c.lineWidth = 1.4;
+    c.beginPath(); c.moveTo(x0 + 12, y0 + 22); c.lineTo(x0 + w - 14, y0 + 22); c.stroke();
+
+    const cores = ['#1f5fd0', '#1f8a4c', '#d8342a', '#7b3fc4', '#0f7f92', '#b8620a'];
+    ideias.slice(0, 5).forEach((txt, i) => {
+      const ry = y0 + 36 + i * 12.5;
+      c.fillStyle = cores[i % cores.length];
+      c.beginPath(); c.arc(x0 + 17, ry - 1, 2, 0, 7); c.fill();
+      c.font = "600 10.5px 'Barlow Semi Condensed', sans-serif";
+      c.fillText(txt, x0 + 25, ry);
+    });
+    if (!ideias.length) {
+      c.font = "italic 600 10px 'Barlow Semi Condensed', sans-serif";
+      c.fillStyle = 'rgba(70,80,100,.55)';
+      c.fillText('quadro vazio', x0 + 25, y0 + 38);
+    }
+    // canetinhas na bandeja
+    ['#d8342a', '#1f5fd0', '#1f8a4c'].forEach((cor, i) => {
+      c.fillStyle = cor;
+      ISO.rrect(c, x0 + w - 60 + i * 15, y0 + h - 8, 12, 4, 2); c.fill();
+    });
+  }
+
+  /* ---- o quadro da BMW, com luminária de quadro em cima ---- */
+  function signBmw(c, len, rgbOn) {
+    const w = len - 50, h = 90, x0 = (len - w) / 2, y0 = 12;
+    // luminária de galeria (latão) e a luz lavando o quadro
+    const gl = c.createRadialGradient(len / 2, y0 - 4, 4, len / 2, y0 + 30, w * .6);
+    gl.addColorStop(0, 'rgba(255,226,170,.28)'); gl.addColorStop(1, 'rgba(255,226,170,0)');
+    c.fillStyle = gl; c.fillRect(0, 0, len, WALL_H);
+    BMW.quadro(c, x0, y0, w, h);
+    c.fillStyle = '#b39a5c';
+    ISO.rrect(c, len / 2 - 50, y0 - 9, 100, 5, 2.5); c.fill();
+    c.fillStyle = '#6e5d33';
+    c.fillRect(len / 2 - 2, y0 - 14, 4, 6);
+    void rgbOn;
+  }
+
+  /* ---- logo da Nassa Tech adesivado no vidro (jateado) ---- */
+  function signLogo(c, len, rgbOn) {
+    const img = NASSA.logo;
+    // faixa jateada
+    c.fillStyle = 'rgba(230,240,255,.10)';
+    c.fillRect(6, 20, len - 12, 62);
+    c.fillStyle = 'rgba(255,255,255,.18)';
+    c.fillRect(6, 20, len - 12, 1.2); c.fillRect(6, 80.8, len - 12, 1.2);
+    if (NASSA.pronto(img)) {
+      const maxW = len - 60, maxH = 48;
+      const k = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+      const w = img.naturalWidth * k, h = img.naturalHeight * k;
+      if (rgbOn) { c.shadowColor = 'rgba(0,179,255,.55)'; c.shadowBlur = 14; }
+      c.drawImage(img, (len - w) / 2, 51 - h / 2, w, h);
+      c.shadowBlur = 0;
+    } else {
+      signNome(c, len, 20, 62, rgbOn);
+    }
+  }
+
+  /* ---- CI/CD da branch main: build, testes, deploy ---- */
+  const COMMITS = [
+    ['feat', 'agente de atendimento no WhatsApp'],
+    ['fix',  'timeout no deploy da API'],
+    ['perf', 'cache nas consultas do painel'],
+    ['feat', 'novo site institucional'],
+    ['test', 'cobertura do checkout 92%'],
+    ['chore','atualiza dependências']
+  ];
+  function signPipeline(c, len, t, rgbOn) {
+    const x0 = 8, y0 = 12, w = len - 16, h = 84;
+    c.fillStyle = 'rgba(5,7,13,.9)';
+    ISO.rrect(c, x0, y0, w, h, 8); c.fill();
+    c.strokeStyle = 'rgba(0,179,255,.35)'; c.lineWidth = 1.4; c.stroke();
+    c.textBaseline = 'middle'; c.textAlign = 'left';
+    c.font = "700 10px 'Barlow Semi Condensed', sans-serif";
+    c.fillStyle = '#00b3ff'; c.letterSpacing = '2px';
+    c.fillText('CI/CD · main', x0 + 10, y0 + 11);
+    c.letterSpacing = '0px';
+    // estágios: o deploy roda em ciclo
+    const fase = (Math.max(0, t) / 3) % 4;
+    const etapas = ['build', 'test', 'deploy'];
+    const cw = (w - 20) / 3;
+    etapas.forEach((nome, i) => {
+      const cx = x0 + 10 + i * cw;
+      const ok = fase > i + 1 || fase >= 3.5, rodando = !ok && fase > i && fase <= i + 1;
+      const cor = ok ? '#23e08a' : rodando ? '#ffb020' : '#3a4256';
+      c.fillStyle = ISO.rgba(cor, .18);
+      ISO.rrect(c, cx, y0 + 21, cw - 6, 15, 4); c.fill();
+      c.fillStyle = cor;
+      c.beginPath(); c.arc(cx + 8, y0 + 28.5, 3 + (rodando ? Math.sin(t * 8) * .8 : 0), 0, 7); c.fill();
+      c.font = "600 9px 'Barlow Semi Condensed', sans-serif";
+      c.fillStyle = '#dfe6f5';
+      c.fillText(nome + (ok ? ' ✓' : ''), cx + 15, y0 + 29);
+    });
+    // últimos commits
+    // o primeiro quadro pode chegar com t levemente negativo
+    const base = Math.floor(Math.max(0, t) / 9);
+    for (let i = 0; i < 3; i++) {
+      const [tipo, msg] = COMMITS[(base + i) % COMMITS.length];
+      const ry = y0 + 47 + i * 12;
+      c.font = "700 8.5px 'JetBrains Mono', 'Consolas', monospace";
+      c.fillStyle = tipo === 'fix' ? '#ff7a7a' : tipo === 'feat' ? '#00b3ff' : '#c4b8ff';
+      c.fillText(tipo, x0 + 10, ry);
+      c.font = "600 8.5px 'Barlow Semi Condensed', sans-serif";
+      c.fillStyle = 'rgba(220,228,245,.85)';
+      c.fillText(msg.length > 30 ? msg.slice(0, 29) + '…' : msg, x0 + 38, ry);
+    }
+    void rgbOn;
+  }
+
+  /* ---- letreiro neon da sala de jogos ---- */
+  function signPlay(c, len, t, rgbOn) {
+    const neon = rgbOn ? ISO.hsl((t * 40) % 360, 95, 62) : '#c056ff';
+    c.save();
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = "700 30px 'Barlow', sans-serif";
+    c.letterSpacing = '6px';
+    c.shadowColor = ISO.rgba(neon, .95); c.shadowBlur = 18;
+    c.strokeStyle = ISO.rgba(neon, .95); c.lineWidth = 2.2;
+    c.strokeText('NASSA PLAY', len / 2, 44);
+    c.shadowBlur = 6; c.fillStyle = 'rgba(255,255,255,.85)';
+    c.font = "600 11px 'Barlow Semi Condensed', sans-serif"; c.letterSpacing = '5px';
+    c.fillText('PRESS START', len / 2, 74);
+    c.restore();
+  }
+
+  /* ---- placa com o nome do escritório (data/config.json) ---- */
+  function signNome(c, len, y0, h, rgbOn) {
+    const E = window.ESCRITORIO || {};
+    const nome = String(E.nome || 'Escritório de Agentes').toUpperCase();
+    const cx = len / 2, cy = y0 + h / 2;
+    c.save();
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    let tam = 26;
+    c.font = `700 ${tam}px 'Barlow', sans-serif`;
+    while (tam > 10 && c.measureText(nome).width > len - 36) { tam--; c.font = `700 ${tam}px 'Barlow', sans-serif`; }
+    c.fillStyle = '#ffffff';
+    if (rgbOn) { c.shadowColor = 'rgba(124,108,255,.8)'; c.shadowBlur = 14; }
+    c.fillText(nome, cx, cy - 6);
+    c.shadowBlur = 0;
+    if (E.subtitulo) {
+      c.font = `500 ${Math.min(10, len / 22)}px 'Barlow Semi Condensed', sans-serif`;
+      c.fillStyle = 'rgba(200,210,235,.6)'; c.letterSpacing = '2px';
+      c.fillText(String(E.subtitulo).toUpperCase().slice(0, 48), cx, cy + 16);
+    }
+    c.restore();
+  }
+
+
+  /* ---- luminárias e detalhes de teto no chão (decalques) ---- */
+  function drawDecals(ctx, t) { /* piso liso: sem logo pintado */ }
+
+  /** o ponto (coordenada de mundo, sem câmera) cai dentro da placa?
+      Usado para clicar no quadro da BMW.                              */
+  function pontoNaPlaca(kind, wx, wy) {
+    const s = SIGNS.find(s => s.kind === kind);
+    if (!s) return false;
+    const len = s.len * ISO.TW;
+    let u, z;
+    if (s.o === 'n') {
+      const Y = s.y + 1, x = wx / ISO.HW + Y;
+      z = (x + Y) * ISO.HH - wy;
+      u = (x - s.x) * ISO.TW;
+    } else {
+      const X = s.x + 1, y = X - wx / ISO.HW;
+      z = (X + y) * ISO.HH - wy;
+      u = (s.y + s.len - y) * ISO.TW;
+    }
+    const v = WALL_H - z;
+    return u > 20 && u < len - 20 && v > 2 && v < 104;
+  }
+
+  /* ---------- pontos de interesse ---------- */
+  const SPAWN = { x: 45, y: 20 };          // elevador / recepção
+
+  return {
+    W, H, VOID, FLOOR, WALL, DOOR, C,
+    ROOMS, DOORS, SPAWN, WALL_H, PARAPET,
+    SIGNS, signDepth,
+    kindAt, roomAt, isWall, walkable, setBlocked, wallOccludes,
+    drawFloor, drawWallTile, drawDoorTile, drawSigns, drawDecals, drawRoomLabels,
+    wallFace, material, pontoNaPlaca, LAJE
+  };
+})();
