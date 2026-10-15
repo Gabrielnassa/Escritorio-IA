@@ -81,7 +81,8 @@ const FURN = (() => {
                    x: seatA.x, y: seatA.y, facing: 's', obj: mesaA, vip: true });
 
   add({ t: 'rug', x: 4.4, y: 2.6, w: 6.2, d: 6.4, c: '#1d2a3a' });
-  [6.5, 8.5].forEach(x => { cadeira({ x, y: 7.9, facing: 'n' }, 'chairGuest'); block(x - .5, 7.4, 1, 1); });
+  [6.5, 8.5].forEach(x => { add({ t: 'poltrona', x: x - .6, y: 7.3, w: 1.2, d: 1.2, face: 'n', c: '#3b2a1f' });
+                            block(x - .6, 7.3, 1.2, 1.2); });
 
   add({ t: 'rug',      x: 2.2, y: 11.2, w: 7.6, d: 5.2, c: '#2a2018' });
   add({ t: 'sofa',     x: 2.6, y: 11.6, w: 4.8, d: 1.6, dir: 'n', c: '#2b1d16' });     block(2.6, 11.6, 4.8, 1.6);
@@ -93,19 +94,25 @@ const FURN = (() => {
   add({ t: 'plant',    x: 1.4,  y: 6.6, k: 0 });                                      block(1.4, 6.6, 1, 1);
   add({ t: 'cafe',     x: 12.1, y: 5.0 });                                            block(12.1, 5.0, 1, 1);
 
-  /* ---------- SALA DE JOGOS ---------- */
-  [2.2, 4.2, 6.2].forEach((x, i) => {
-    const o = add({ t: 'arcade', x, y: 23.2, w: 1.5, d: 1.2, hue: [12, 190, 300][i] });
-    block(x, 23.2, 1.5, 1.2);
-    restSlots.push({ id: 'ARC' + i, label: 'arcade', x: x + 0.75, y: 25.0, facing: 'n',
-                     act: 'jogando fliperama', obj: o });
+  /* ---------- SALA DE JOGOS ----------
+     Um lounge sóbrio, sem neon: assoalho claro, painel de feltro grafite,
+     sinuca, pebolim, mesa de xadrez, videogame no telão e café.        */
+  add({ t: 'xadrez', x: 3.5, y: 24.2, w: 1.2, d: 1.2 });
+  block(3.5, 24.2, 1.2, 1.2);
+  [{ x: 2.0, face: 'e', sx: 2.65 }, { x: 4.9, face: 'w', sx: 5.55 }].forEach((p, i) => {
+    const pol = add({ t: 'poltrona', x: p.x, y: 24.15, w: 1.3, d: 1.3, face: p.face, c: '#3b2a1f' });
+    block(p.x, 24.15, 1.3, 1.3);
+    restSlots.push({ id: 'XAD' + i, label: 'xadrez', x: p.sx, y: 24.8, facing: p.face,
+                     sit: true, act: 'jogando xadrez', obj: pol });
   });
+  add({ t: 'estante', x: 6.6, y: 23.15, w: 2.2, d: .8 });  block(6.6, 23.15, 2.2, .8);
 
   const pool = add({ t: 'poolTable', x: 9.6, y: 25, w: 4.6, d: 2.6 });
   block(9.6, 25, 4.6, 2.6);
   restSlots.push({ id: 'POOL0', label: 'sinuca', x: 8.6,  y: 26.3, facing: 'e', act: 'na sinuca', obj: pool });
   restSlots.push({ id: 'POOL1', label: 'sinuca', x: 15.0, y: 26.3, facing: 'w', act: 'na sinuca', obj: pool });
   restSlots.push({ id: 'POOL2', label: 'sinuca', x: 11.9, y: 24.3, facing: 's', act: 'na sinuca', obj: pool });
+  add({ t: 'luminariaSinuca', x: 9.6, y: 25, w: 4.6, d: 2.6, dk: 9.6 + 25 + 2.6 + 4.6 });
 
   const peb = add({ t: 'foosball', x: 9.8, y: 29.4, w: 4.2, d: 2 });
   block(9.8, 29.4, 4.2, 2);
@@ -113,29 +120,27 @@ const FURN = (() => {
   restSlots.push({ id: 'PEB1', label: 'pebolim', x: 14.7, y: 30.4, facing: 'w', act: 'no pebolim', obj: peb });
 
   add({ t: 'tvWall', x: 18.4, y: 23.15, w: 5, d: 0.5 });
-  const sofaL = add({ t: 'sofa', x: 18.6, y: 26.4, w: 4.6, d: 1.6, dir: 'n', c: '#241c3c' });
+  add({ t: 'rug', x: 18.0, y: 24.2, w: 5.8, d: 4.4, c: '#2b2a29' });
+  const sofaL = add({ t: 'sofa', x: 18.6, y: 26.4, w: 4.6, d: 1.6, dir: 'n', c: '#2b1d16' });
   block(18.6, 26.4, 4.6, 1.6);
   ['SOF0', 'SOF1', 'SOF2'].forEach((id, i) =>
     restSlots.push({ id, label: 'sofá', x: 19.7 + i * 1.4, y: 27.3, facing: 'n',
-                     sit: true, act: i === 1 ? 'jogando FIFA no telão' : 'na torcida do videogame', obj: sofaL }));
-  add({ t: 'rug', x: 18.2, y: 24.4, w: 5.4, d: 2, c: '#1b2440' });
-
-  [[25.2, 27.6, 24], [26.8, 29.4, 300], [24.4, 30.2, 160]].forEach((b, i) => {
-    const o = add({ t: 'beanbag', x: b[0], y: b[1], hue: b[2] });
-    block(b[0], b[1], 1.2, 1.2);
-    restSlots.push({ id: 'BAG' + i, label: 'puff', x: b[0] + 0.6, y: b[1] + 0.55,
-                     facing: 's', sit: true, act: 'jogando no celular', obj: o });
+                     sit: true, act: i === 1 ? 'jogando FIFA no telão' : 'assistindo o jogo', obj: sofaL }));
+  [24.4, 26.4].forEach((y, i) => {
+    const pol = add({ t: 'poltrona', x: 24.3, y, w: 1.3, d: 1.3, face: 'w', c: '#3b2a1f' });
+    block(24.3, y, 1.3, 1.3);
+    restSlots.push({ id: 'POL' + i, label: 'poltrona', x: 24.95, y: y + .65, facing: 'w',
+                     sit: true, act: i ? 'lendo no lounge' : 'assistindo o jogo', obj: pol });
   });
 
   const bar = add({ t: 'bar', x: 2, y: 30.4, w: 5.4, d: 1.4 });
   block(2, 30.4, 5.4, 1.4);
-  restSlots.push({ id: 'BAR0', label: 'bar', x: 3.0, y: 29.4, facing: 's', act: 'tomando um café', obj: bar });
-  restSlots.push({ id: 'BAR1', label: 'bar', x: 5.4, y: 29.4, facing: 's', act: 'tomando um café', obj: bar });
+  restSlots.push({ id: 'BAR0', label: 'café', x: 3.0, y: 29.4, facing: 's', act: 'tomando um café', obj: bar });
+  restSlots.push({ id: 'BAR1', label: 'café', x: 5.4, y: 29.4, facing: 's', act: 'tomando um café', obj: bar });
 
-  add({ t: 'vending',     x: 26.6, y: 23.2 });                block(26.6, 23.2, 1.2, 1.2);
+  add({ t: 'vending', x: 26.6, y: 23.2 });                    block(26.6, 23.2, 1.2, 1.2);
   add({ t: 'plant', x: 16.6, y: 23.4, k: 1 });                 block(16.6, 23.4, 1, 1);
   add({ t: 'plant', x: 27.0, y: 31.2, k: 0 });                 block(27.0, 31.2, 1, 1);
-  add({ t: 'neonSign', x: 15.4, y: 23.2, txt: 'GAME ON', hue: 300 });
 
   /* ---------- SALA DE REUNIÃO ---------- */
   const mtable = add({ t: 'meetTable', x: 36, y: 26, w: 7, d: 3.2 });
@@ -184,6 +189,7 @@ const FURN = (() => {
      — mesa, arcade, rack, TV, planta — continua sendo desenhado ao vivo. */
   const ALTURA_CACHE = {
     chairGamer: 78, chairBoss: 84, chairSimple: 58, chairGuest: 64, expositor: 96,
+    poltrona: 60, xadrez: 50,
     pilhaCaixas: 118, poolTable: 56, foosball: 52, sofa: 60,
     rug: 12, lowTable: 40, cooler: 64
   };
@@ -391,8 +397,8 @@ const FURN = (() => {
       ISO.box(ctx, x, y, w, d, 12, 26, '#3a1d0c', { top: '#4a2610' });
       ISO.plane(ctx, x + .28, y + .28, w - .56, d - .56, 38.4, '#0f5c3a');
       ISO.plane(ctx, x + .28, y + .28, w - .56, d - .56, 38.4, null, 'rgba(0,0,0,.35)');
-      [['#f2f2f2', .5, .5], ['#c4b8ff', 2.6, 1.0], ['#7c6cff', 3.0, 1.35],
-       ['#18a2ff', 3.3, .9], ['#8b5cf6', 2.8, 1.7], ['#22c55e', 3.5, 1.6]]
+      [['#f2f2f2', .5, .5], ['#e8b923', 2.6, 1.0], ['#b3261e', 3.0, 1.35],
+       ['#1f3f8f', 3.3, .9], ['#111111', 2.8, 1.7], ['#d9772b', 3.5, 1.6]]
       .forEach(([c, bx, by]) => {
         const p = S(x + bx, y + by, 38.4);
         ctx.fillStyle = 'rgba(0,0,0,.3)';
@@ -408,8 +414,8 @@ const FURN = (() => {
       const { x, y, w, d } = o;
       ISO.shadow(ctx, x + w / 2, y + d / 2, 2.1, .3);
       [[.15, .15], [w - .5, .15], [.15, d - .5], [w - .5, d - .5]]
-        .forEach(p => ISO.box(ctx, x + p[0], y + p[1], .35, .35, 24, 0, '#16203a'));
-      ISO.box(ctx, x, y, w, d, 10, 24, '#1d2742', { top: '#14361f' });
+        .forEach(p => ISO.box(ctx, x + p[0], y + p[1], .35, .35, 24, 0, '#2a1b12'));
+      ISO.box(ctx, x, y, w, d, 10, 24, '#3a2618', { top: '#14361f' });
       ISO.plane(ctx, x + .2, y + .2, w - .4, d - .4, 34.4, '#166534');
       ISO.plane(ctx, x + w / 2 - .03, y + .2, .06, d - .4, 34.5, 'rgba(255,255,255,.45)');
       for (let i = 0; i < 5; i++) {
@@ -417,7 +423,7 @@ const FURN = (() => {
         ISO.box(ctx, bx, y - .18, .07, d + .36, 4, 44, '#9aa6c4');
         for (let j = 0; j < 3; j++)
           ISO.box(ctx, bx - .07, y + .5 + j * ((d - 1) / 2) - .1, .22, .22, 11, 34,
-                  i % 2 ? '#7c6cff' : '#18a2ff');
+                  i % 2 ? '#b3261e' : '#1f3f8f');
       }
     },
 
@@ -497,46 +503,66 @@ const FURN = (() => {
             c.fillRect(12, 38 + i * 9, (len - 24) * (.35 + .25 * ((Math.sin(t * .6 + i) + 1) / 2)), 4);
           }
         } else {
-          for (let i = 0; i < 5; i++) {
-            c.fillStyle = ISO.rgba(ISO.hsl((t * 30 + i * 60) % 360, 80, 55), .22);
-            c.fillRect(i * len / 5, 0, len / 5, h - 8);
-          }
+          // partida no videogame: gramado, linhas e placar
+          const g = c.createLinearGradient(0, 0, 0, h - 8);
+          g.addColorStop(0, '#2f6b33'); g.addColorStop(1, '#245528');
+          c.fillStyle = g; c.fillRect(0, 0, len, h - 8);
+          c.fillStyle = 'rgba(255,255,255,.06)';
+          for (let i = 0; i < 8; i += 2) c.fillRect(i * len / 8, 0, len / 8, h - 8);
+          c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 1;
+          c.strokeRect(6, 6, len - 12, h - 20);
+          c.beginPath(); c.moveTo(len / 2, 6); c.lineTo(len / 2, h - 14); c.stroke();
+          c.beginPath(); c.arc(len / 2, (h - 8) / 2, 8, 0, 7); c.stroke();
+          const bx = len / 2 + Math.sin(t * .7) * len * .3, by = (h - 8) / 2 + Math.sin(t * 1.3) * 10;
+          c.fillStyle = '#fff'; c.beginPath(); c.arc(bx, by, 1.6, 0, 7); c.fill();
+          c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(8, 8, 40, 9);
+          c.fillStyle = '#fff'; c.font = "700 7px 'Barlow Semi Condensed', sans-serif";
+          c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText('NAS 2 x 1 DEV', 11, 12.8);
         }
       });
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const gc = S(x + w / 2, y + .3, z + h / 2);
-      ISO.glow(ctx, gc.x, gc.y, 110, o.meeting ? '#38bdf8' : '#7aa2ff', .18);
+      ISO.glow(ctx, gc.x, gc.y, 110, o.meeting ? '#38bdf8' : '#cfe0ff', o.meeting ? .18 : .08);
       ctx.restore();
     },
 
-    bar(ctx, o, t) {
+    /* balcão de café em madeira com tampo de pedra */
+    bar(ctx, o) {
       const { x, y, w, d } = o;
       ISO.shadow(ctx, x + w / 2, y + d / 2, 2.3, .3);
-      ISO.box(ctx, x, y, w, d, 46, 0, '#14182a', { top: '#232a44' });
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      ISO.quad(ctx, [S(x, y + d, 46), S(x + w, y + d, 46), S(x + w, y + d, 41), S(x, y + d, 41)],
-               ISO.rgba(ISO.hsl((t * 46) % 360, 95, 58), .7));
-      ctx.restore();
-      dispenser(ctx, x + 1.1, y + .55, '#7c6cff', t);
-      dispenser(ctx, x + 2.6, y + .55, '#c4b8ff', t + 1.4);
-      for (let i = 0; i < 4; i++) ISO.cyl(ctx, x + .35, y + .3 + i * .22, .08, 9, 46, '#e9edf8');
+      ISO.box(ctx, x, y, w, d, 42, 0, '#4a3322', { top: '#5a3d27' });
+      ISO.box(ctx, x - .05, y - .05, w + .1, d + .1, 4, 42, '#bdb6aa', { top: '#d8d2c6' });
+      faceY(ctx, x, y + d + .05, w, 40, (c, len) => {
+        c.fillStyle = 'rgba(0,0,0,.18)';
+        for (let i = 6; i < len; i += 8) c.fillRect(i, 2, 1.4, 36);
+      });
+      ISO.box(ctx, x + .5, y + .3, .9, .7, 24, 46, '#8d96a3', { top: '#c4ccd6' });
+      ISO.box(ctx, x + .55, y + .95, .8, .1, 5, 52, '#1b1f27');
+      ISO.cyl(ctx, x + 1.9, y + .6, .16, 24, 46, '#2a2d33');
+      ISO.cyl(ctx, x + 1.9, y + .6, .12, 8, 70, '#6b4a33');
+      for (let i = 0; i < 4; i++) ISO.cyl(ctx, x + 3.0 + i * .4, y + .55, .08, 7, 46, '#eef1f4');
+      ISO.cyl(ctx, x + w - .6, y + .6, .22, 5, 46, '#d8d2c6');
+      [['#c0392b', -.06, .02], ['#e8b923', .08, -.04], ['#4f8a3a', .02, .08]].forEach(([cor, dx, dy]) =>
+        ISO.cyl(ctx, x + w - .6 + dx, y + .6 + dy, .07, 5, 51, cor));
     },
 
-    vending(ctx, o, t) {
+    /* geladeira de bebidas com porta de vidro */
+    vending(ctx, o) {
       const { x, y } = o;
       ISO.shadow(ctx, x + .6, y + .6, .8, .3);
-      ISO.box(ctx, x, y, 1.2, 1.1, 92, 0, '#141a2e');
+      ISO.box(ctx, x, y, 1.2, 1.1, 92, 0, '#2a2d33', { top: '#3a3e45' });
       faceY(ctx, x + .08, y + 1.1, 1.04, 86, (c, len) => {
-        c.fillStyle = 'rgba(10,14,26,.92)'; c.fillRect(0, 0, len, 62);
-        for (let r = 0; r < 4; r++) for (let i = 0; i < 3; i++) {
-          c.fillStyle = ISO.rgba(['#38bdf8', '#a78bfa', '#f472b6'][i], .82);
-          ISO.rrect(c, 5 + i * (len - 10) / 3, 6 + r * 14, (len - 10) / 3 - 4, 10, 2); c.fill();
+        c.fillStyle = 'rgba(210,225,235,.18)'; c.fillRect(0, 0, len, 80);
+        const garrafas = ['#2f5f3a', '#c9a227', '#7a1c1c', '#d8dde3', '#2b3b62'];
+        for (let r = 0; r < 4; r++) {
+          c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(2, 18 + r * 19, len - 4, 1);
+          for (let i = 0; i < 6; i++) {
+            c.fillStyle = garrafas[(r + i) % garrafas.length];
+            c.fillRect(5 + i * (len - 10) / 6, 6 + r * 19, 4, 12);
+          }
         }
+        c.fillStyle = '#9aa1aa'; c.fillRect(len - 5, 20, 2, 30);
       });
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      const g = S(x + .6, y + .6, 60);
-      ISO.glow(ctx, g.x, g.y, 62, ISO.hsl((t * 50) % 360, 90, 60), .2);
-      ctx.restore();
     },
 
     rack(ctx, o, t) {
@@ -647,6 +673,60 @@ const FURN = (() => {
         c.strokeStyle = ISO.rgba(neon, .35); c.lineWidth = 1;
         c.beginPath(); c.moveTo(14, 32); c.lineTo(len - 14, 32); c.stroke();
       });
+    },
+
+    /* poltrona de couro; "face" é para onde quem senta olha */
+    poltrona(ctx, o) {
+      const { x, y, w, d } = o;
+      const c = o.c || '#3b2a1f';
+      const f = o.face || 'n';
+      ISO.shadow(ctx, x + w / 2, y + d / 2, Math.max(w, d) * .55, .28);
+      const esp = .3, br = .22;
+      // pés, assento e depois encosto e braços, do fundo para a frente
+      [[.1, .1], [w - .2, .1], [.1, d - .2], [w - .2, d - .2]]
+        .forEach(([px, py]) => ISO.box(ctx, x + px, y + py, .1, .1, 6, 0, '#1a1410'));
+      ISO.box(ctx, x + .04, y + .04, w - .08, d - .08, 12, 6, ISO.shade(c, -.1), { top: ISO.shade(c, .12) });
+      const enc = f === 'n' ? [x, y + d - esp, w, esp] : f === 's' ? [x, y, w, esp]
+                : f === 'e' ? [x, y, esp, d]          : [x + w - esp, y, esp, d];
+      const bracos = (f === 'n' || f === 's')
+        ? [[x, y, br, d], [x + w - br, y, br, d]]
+        : [[x, y, w, br], [x, y + d - br, w, br]];
+      const pecas = [[enc[0] + enc[2] / 2 + enc[1] + enc[3] / 2, () =>
+        ISO.box(ctx, enc[0], enc[1], enc[2], enc[3], 30, 6, c, { top: ISO.shade(c, .18) })]];
+      for (const b of bracos) pecas.push([b[0] + b[2] / 2 + b[1] + b[3] / 2, () =>
+        ISO.box(ctx, b[0], b[1], b[2], b[3], 17, 6, ISO.shade(c, .04), { top: ISO.shade(c, .2) })]);
+      pecas.sort((a, b) => a[0] - b[0]).forEach(p => p[1]());
+    },
+
+    /* mesa de xadrez com o tabuleiro montado */
+    xadrez(ctx, o) {
+      const { x, y, w, d } = o;
+      ISO.shadow(ctx, x + w / 2, y + d / 2, .7, .28);
+      ISO.cyl(ctx, x + w / 2, y + d / 2, .35, 2, 0, '#2a1b12');
+      ISO.cyl(ctx, x + w / 2, y + d / 2, .12, 22, 0, '#2a1b12');
+      ISO.box(ctx, x, y, w, d, 3, 22, '#4a3322', { top: '#5a3d27' });
+      const n = 8, k = (w - .2) / n;
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++)
+        ISO.plane(ctx, x + .1 + i * k, y + .1 + j * k, k, k, 25.1, (i + j) % 2 ? '#2b1d14' : '#e6dcc8');
+      const pecas = [[1, 0, '#f2efe8'], [3, 1, '#f2efe8'], [4, 1, '#f2efe8'], [6, 0, '#f2efe8'],
+                     [2, 6, '#1a1410'], [4, 6, '#1a1410'], [3, 7, '#1a1410'], [5, 4, '#f2efe8'], [2, 3, '#1a1410']];
+      for (const [i, j, cor] of pecas)
+        ISO.cyl(ctx, x + .1 + (i + .5) * k, y + .1 + (j + .5) * k, k * .3, 5, 25, cor);
+    },
+
+    /* luminária pendente sobre a sinuca, luz quente */
+    luminariaSinuca(ctx, o) {
+      const { x, y, w, d } = o;
+      const z = 120;
+      ISO.box(ctx, x + .4, y + d / 2 - .15, w - .8, .3, 6, z, '#1c1d20', { top: '#2a2b2f' });
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (const fx of [.25, .5, .75]) {
+        const p = S(x + w * fx, y + d / 2, z);
+        ISO.glow(ctx, p.x, p.y + 4, 22, '#ffe2a8', .35);
+      }
+      const pc = S(x + w / 2, y + d / 2, 38);
+      ISO.glow(ctx, pc.x, pc.y, 120, '#ffe2a8', .10);
+      ctx.restore();
     },
 
     /* estante de nogueira com livros, troféus e uma miniatura */

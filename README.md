@@ -12,10 +12,10 @@ verdade.
 
 | Sala | O que tem |
 | --- | --- |
-| **Sala do chefe** | A mesa do Gabriel, painel ripado de madeira, o **quadro da BMW 335i E90 M Sport LCI (2009/2010)** preta com as rodas **Style 359M de 19" prata**, estante, estar com sofá de couro, máquina de café e vista para a Ponte Estaiada |
+| **Sala do chefe** | A mesa do Gabriel, painel ripado de madeira, o **quadro da BMW 335i E90 M Sport LCI (2009/2010)** preta com as rodas **Style 359M de 19" prata**, poltronas de couro para visitas, estante, estar com sofá de couro, máquina de café e vista para a Ponte Estaiada |
 | **Sala dos devs** | 12 estações com monitor, painel com a equipe ao vivo, quadro de **CI/CD** (build, test, deploy) e o logo jateado no vidro da fachada |
 | **Sala de reunião** | Aquário de vidro com mesa para oito e telão com o logo. É onde acontecem a daily e a reunião dos agentes |
-| **Sala de jogos** | Três fliperamas, sinuca, pebolim, videogame no telão, puffs e um balcão de café, com painel acústico e o neon **NASSA PLAY** |
+| **Sala de jogos** | Um lounge sóbrio, sem luz colorida: assoalho claro, painel de feltro grafite com o logo em metal, sinuca com luminária pendente, pebolim, mesa de xadrez, videogame no telão, poltronas de couro, balcão de café e geladeira de bebidas |
 | **Recepção** | Hall dos elevadores, balcão com o logo e o rack dos servidores |
 
 O prédio tem características reais:
@@ -31,8 +31,8 @@ O prédio tem características reais:
   andares, o prédio baixo do teatro com teto verde, a praça aberta com a
   **escultura da baleia** e a Faria Lima com a ciclovia vermelha. O 18º andar,
   o da Nassa Tech, fica aceso.
-- **Pisos reais:** madeira na sala do chefe, carpete em placas nos devs e na
-  reunião, vinílico na sala de jogos e porcelanato na circulação.
+- **Pisos reais:** madeira escura na sala do chefe, madeira clara na sala de
+  jogos, carpete em placas nos devs e na reunião e porcelanato na circulação.
 
 ### O quadro da BMW
 

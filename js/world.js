@@ -43,9 +43,10 @@ const WORLD = (() => {
       id: 'lounge', name: 'SALA DE JOGOS', short: 'Jogos',
       bx: 0, by: 22, bw: 30, bh: 12,
       x1: 1, y1: 23, x2: 28, y2: 32,
-      accent: '#c056ff', piso: 'vinilico',
-      floorA: '#1d1630', floorB: '#221a38',
-      desc: 'Fliperamas, sinuca, pebolim, videogame no telão, puffs e café. Separada da operação por vidro acústico.'
+      accent: '#c9a46a', piso: 'madeira',
+      tons: ['#6b5240', '#735845', '#6f5543', '#775c48', '#684f3d'],
+      floorA: '#6b5240', floorB: '#735845',
+      desc: 'Lounge sóbrio: sinuca com luminária pendente, pebolim, mesa de xadrez, videogame no telão, poltronas de couro e café.'
     },
     reuniao: {
       id: 'reuniao', name: 'SALA DE REUNIÃO', short: 'Reunião',
@@ -145,7 +146,7 @@ const WORLD = (() => {
     { o: 'n', x: 20, y: 0,  len: 9,  kind: 'equipe'   },  // devs: a equipe agora
     { o: 'n', x: 31, y: 0,  len: 8,  kind: 'logo'     },  // devs: logo adesivado no vidro
     { o: 'n', x: 41, y: 0,  len: 5,  kind: 'pipeline' },  // devs: CI/CD da branch main
-    { o: 'w', x: 0,  y: 24, len: 7,  kind: 'play'     }   // jogos: letreiro neon
+    { o: 'w', x: 0,  y: 25, len: 6,  kind: 'logoParede' } // jogos: logo em metal no feltro
   ];
 
   /* ---------- acabamento das paredes externas ----------
@@ -161,7 +162,7 @@ const WORLD = (() => {
     }
     return null;
   }
-  const BRILHO_SALA = id => id === 'lounge';   // só a sala de jogos fica arco-íris
+  const SEM_LED = id => id === 'lounge';       // a sala de jogos é sóbria: sem fita de LED
 
   /* ===========================================================
      DESENHO
@@ -234,7 +235,7 @@ const WORLD = (() => {
     const P = ISO.toScreen;
     if (r.piso === 'madeira') {
       // assoalho de madeira escura em réguas, com emendas desencontradas
-      const tons = ['#3b2719', '#422b1b', '#46301f', '#3f2a1c', '#4a3322'];
+      const tons = r.tons || ['#3b2719', '#422b1b', '#46301f', '#3f2a1c', '#4a3322'];
       for (let i = 0; i < 3; i++) {
         const cor = tons[Math.floor(hash(x, y * 3 + i) * tons.length)];
         ISO.plane(c, x, y + i / 3, 1, 1 / 3, 0, cor);
@@ -347,13 +348,9 @@ const WORLD = (() => {
       const p = ISO.toScreen(1.5, y);
       if (luzDia > .05) ISO.glow(ctx, p.x, p.y, 130, '#ffe9c8', .06 * luzDia);
     }
-    for (let x = ROOMS.lounge.x1; x <= ROOMS.lounge.x2; x += 8) {
-      const p = ISO.toScreen(x, 28);
-      const hue = (t * 44 + x * 26) % 360;
-      ISO.glow(ctx, p.x, p.y, 150, ISO.hsl(hue, 95, 58), .07);
-    }
     ctx.restore();
   }
+
 
   /* ---- rótulo flutuante de cada sala ---- */
   function drawRoomLabels(ctx) {
@@ -397,22 +394,15 @@ const WORLD = (() => {
       // rodapé embutido
       c.fillStyle = '#0d0a08'; c.fillRect(0, WALL_H - 5, T, 5);
     } else if (tipo === 'acustico') {
-      // painel acústico de feltro em placas hexagonais
-      c.fillStyle = '#211830'; c.fillRect(0, 0, T, WALL_H);
-      const r = 9;
-      for (let row = 0, y = 4; y < WALL_H + r; row++, y += r * 1.5) {
-        for (let x = (row % 2) * r * .87; x < T + r; x += r * 1.74) {
-          c.beginPath();
-          for (let i = 0; i < 6; i++) {
-            const a = Math.PI / 6 + i * Math.PI / 3;
-            c.lineTo(x + Math.cos(a) * (r - 1), y + Math.sin(a) * (r - 1));
-          }
-          c.closePath();
-          c.fillStyle = ['#2a1f3d', '#30234a', '#261c37'][(row + Math.round(x)) % 3];
-          c.fill();
-        }
+      // painel acústico de feltro grafite em réguas verticais
+      c.fillStyle = '#1b1c1f'; c.fillRect(0, 0, T, WALL_H);
+      for (let x = 0; x < T; x += 16) {
+        const g = c.createLinearGradient(0, 0, 0, WALL_H);
+        g.addColorStop(0, '#3a3c41'); g.addColorStop(1, '#2a2c30');
+        c.fillStyle = g; c.fillRect(x + 1, 0, 14, WALL_H);
+        c.fillStyle = 'rgba(255,255,255,.035)'; c.fillRect(x + 1, 0, 1, WALL_H);
       }
-      c.fillStyle = '#120d1b'; c.fillRect(0, WALL_H - 5, T, 5);
+      c.fillStyle = '#121214'; c.fillRect(0, WALL_H - 5, T, 5);
     }
     cacheTextura.set(tipo, cv);
     return cv;
@@ -447,8 +437,8 @@ const WORLD = (() => {
     const occ  = wallOccludes(x, y);
     const room = ROOMS[roomOf[idx(x, y)]] || ROOMS.corredor;
     const h    = occ ? PARAPET : WALL_H;
-    const arco = BRILHO_SALA(room.id);
-    const corLed = (k) => arco ? ISO.hsl((t * 34 + k * 11) % 360, 92, 58) : NASSA.led(t, k);
+    const semLed = SEM_LED(room.id);
+    const corLed = (k) => NASSA.led(t, k);
 
     const showLeft  = !isWall(x, y + 1);   // face virada para +y
     const showRight = !isWall(x + 1, y);   // face virada para +x
@@ -489,7 +479,7 @@ const WORLD = (() => {
       ISO.quad(ctx, f.pts, g);
 
       // rodapé com fita de LED
-      if (rgbOn) {
+      if (rgbOn && !semLed) {
         const neon = corLed(x + y);
         const strip = [
           f.pts[3], f.pts[2],
@@ -521,14 +511,14 @@ const WORLD = (() => {
       ISO.plane(ctx, x, y, 1, 1, WALL_H, ISO.rgba(room.accent, rgbOn ? .16 : .08));
     }
 
-    // trilho de LED no topo da parede — é a cara do lugar, nunca some
-    if (rgbOn) {
+    // trilho de LED no topo da parede (menos na sala de jogos)
+    if (rgbOn && !semLed) {
       const neon = corLed(x + y);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       // a fita já brilha sozinha; um glow radial por tile custava mais
       // área pintada que a tela inteira, várias vezes por quadro
-      ISO.plane(ctx, x + .02, y + .02, .96, .96, WALL_H + 2, ISO.rgba(neon, externa ? .3 : (arco ? .55 : .38)));
+      ISO.plane(ctx, x + .02, y + .02, .96, .96, WALL_H + 2, ISO.rgba(neon, externa ? .3 : .38));
       ctx.restore();
     }
 
@@ -564,9 +554,8 @@ const WORLD = (() => {
   function drawDoorTile(ctx, x, y, t) {
     const d = DOORS.find(d => d.x === x && d.y === y);
     if (!d) return;
-    const neon = BRILHO_SALA(roomAt(x, y + (d.o === 'h' ? 1 : 0)))
-      ? ISO.hsl((t * 34 + (x + y) * 11) % 360, 95, 60)
-      : NASSA.led(t, x + y);
+    if (SEM_LED(roomAt(x, y + (d.o === 'h' ? 1 : 0)))) return;
+    const neon = NASSA.led(t, x + y);
     const P = ISO.toScreen;
     const h = 96;
 
@@ -605,13 +594,14 @@ const WORLD = (() => {
     else if (s.kind === 'bmw')      signBmw(c, len, rgbOn);
     else if (s.kind === 'logo')     signLogo(c, len, rgbOn);
     else if (s.kind === 'pipeline') signPipeline(c, len, t, rgbOn);
-    else if (s.kind === 'play')     signPlay(c, len, t, rgbOn);
+    else if (s.kind === 'logoParede') signLogoParede(c, len);
   }
 
   /* placas paradas só repintam quando algo nelas muda */
   const PLACA_FIXA = {
     bmw:  () => BMW.pronto ? 'ok' : 'carregando',
-    logo: () => NASSA.pronto(NASSA.logo) ? 'ok' : 'carregando'
+    logo: () => NASSA.pronto(NASSA.logo) ? 'ok' : 'carregando',
+    logoParede: () => NASSA.pronto(NASSA.logo) ? 'ok' : 'carregando'
   };
   const ESC_PLACA = 2;     // pintadas em 2x para continuarem nítidas no zoom
 
@@ -874,19 +864,20 @@ const WORLD = (() => {
     void rgbOn;
   }
 
-  /* ---- letreiro neon da sala de jogos ---- */
-  function signPlay(c, len, t, rgbOn) {
-    const neon = rgbOn ? ISO.hsl((t * 40) % 360, 95, 62) : '#c056ff';
+  /* ---- logo em metal escovado no painel de feltro, com luz de parede quente ---- */
+  function signLogoParede(c, len) {
+    const gl = c.createRadialGradient(len / 2, 0, 4, len / 2, 30, len * .55);
+    gl.addColorStop(0, 'rgba(255,226,170,.18)'); gl.addColorStop(1, 'rgba(255,226,170,0)');
+    c.fillStyle = gl; c.fillRect(0, 0, len, WALL_H);
+    const img = NASSA.logo;
+    if (!NASSA.pronto(img)) return;
+    const maxW = len - 80, maxH = 34;
+    const k = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+    const w = img.naturalWidth * k, h = img.naturalHeight * k;
     c.save();
-    c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.font = "700 30px 'Barlow', sans-serif";
-    c.letterSpacing = '6px';
-    c.shadowColor = ISO.rgba(neon, .95); c.shadowBlur = 18;
-    c.strokeStyle = ISO.rgba(neon, .95); c.lineWidth = 2.2;
-    c.strokeText('NASSA PLAY', len / 2, 44);
-    c.shadowBlur = 6; c.fillStyle = 'rgba(255,255,255,.85)';
-    c.font = "600 11px 'Barlow Semi Condensed', sans-serif"; c.letterSpacing = '5px';
-    c.fillText('PRESS START', len / 2, 74);
+    c.globalAlpha = .9;
+    c.shadowColor = 'rgba(0,0,0,.6)'; c.shadowBlur = 4; c.shadowOffsetY = 2;
+    c.drawImage(img, (len - w) / 2, 46 - h / 2, w, h);
     c.restore();
   }
 

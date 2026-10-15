@@ -325,7 +325,7 @@ const SCALE = AVATAR.SCALE;
 /** móveis em que o boneco senta EM CIMA — aí ele é desenhado por cima do móvel.
     Mesa e cadeira ficam de fora: a cadeira já tem profundidade própria e o
     monitor deve mesmo tapar o peito de quem está atrás dele. */
-const SIT_OVER = new Set(['sofa', 'beanbag']);
+const SIT_OVER = new Set(['sofa', 'beanbag', 'poltrona']);
 
 const STATUS_COLOR = {
   trabalhando: '#23e08a', descanso: '#ffb020', reuniao: '#38bdf8', offline: '#5a6280'
