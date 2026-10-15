@@ -46,8 +46,13 @@ const FURN = (() => {
     for (let i = 0; i < partes; i++) {
       const a0 = i / partes, a1 = (i + 1) / partes;
       const cx = o.x + (o.w || 1) * (a0 + a1) / 2;
-      const dk = partes > 1 ? cx + o.y + (o.d || 1) + .5
-                            : cx + o.y + (o.d || 1) / 2 + .9;
+      // nunca antes da própria base (nem de quem senta nela, que vai em
+      // base + .02): a primeira fatia de um sofá largo tinha o centro tão
+      // à esquerda que entrava antes do assento e sumia, deixando um buraco
+      const dkBase = o.x + (o.w || 1) / 2 + o.y + (o.d || 1) / 2;
+      const dk = Math.max(dkBase + .03 + i * .001,
+                          partes > 1 ? cx + o.y + (o.d || 1) + .5
+                                     : cx + o.y + (o.d || 1) / 2 + .9);
       add(Object.assign({}, o, { camada: 'frente', fatia: [a0, a1], dk }));
     }
     return base;
@@ -451,16 +456,30 @@ const FURN = (() => {
     sofa(ctx, o) {
       const { x, y, w, d } = o;
       const c = o.c || '#2b2340';
+      const braco = ISO.shade(c, .06);
+      /* almofada do assento: uma caixa de 16 px em cima da base, com frente
+         e lateral. Antes era só uma placa solta a 32 px de altura, e entre
+         ela e a base aparecia um vão escuro, como um buraco no sofá.     */
+      const almofada = (ax, ay, aw, ad) => {
+        ISO.box(ctx, ax, ay, aw, ad, 16, 16, ISO.shade(c, .02), { top: ISO.shade(c, .16) });
+        // costura entre as almofadas
+        const longo = aw >= ad, comp = longo ? aw : ad, n = Math.max(1, Math.round(comp / 1.6));
+        for (let i = 1; i < n; i++) {
+          if (longo) ISO.plane(ctx, ax + aw * i / n - .015, ay, .03, ad, 32.2, ISO.shade(c, -.12));
+          else       ISO.plane(ctx, ax, ay + ad * i / n - .015, aw, .03, 32.2, ISO.shade(c, -.12));
+        }
+      };
       if (o.camada !== 'frente') {
         ISO.shadow(ctx, x + w / 2, y + d / 2, Math.max(w, d) * .55, .28);
         ISO.box(ctx, x, y, w, d, 16, 0, ISO.shade(c, -.2));
       }
+      // as peças vão do fundo para a frente: o que tem x ou y menor primeiro
       if (o.dir === 's') {
         // encosto do lado da câmera: quem senta olha para o norte
         if (o.camada !== 'frente') {
-          ISO.box(ctx, x, y, .38, d - .42, 16, 16, ISO.shade(c, .06));
-          ISO.box(ctx, x + w - .38, y, .38, d - .42, 16, 16, ISO.shade(c, .06));
-          ISO.plane(ctx, x + .4, y + .04, w - .8, d - .5, 32, ISO.shade(c, .16));
+          ISO.box(ctx, x, y, .38, d - .42, 16, 16, braco);
+          almofada(x + .38, y, w - .76, d - .42);
+          ISO.box(ctx, x + w - .38, y, .38, d - .42, 16, 16, braco);
         }
         if (o.camada !== 'base') {
           const [a0, a1] = o.fatia || [0, 1];
@@ -470,22 +489,22 @@ const FURN = (() => {
       }
       if (o.dir === 'e') {
         // encosto do lado leste: quem senta olha para oeste
-        ISO.box(ctx, x, y, w - .42, .38, 16, 16, ISO.shade(c, .06));
-        ISO.box(ctx, x, y + d - .38, w - .42, .38, 16, 16, ISO.shade(c, .06));
-        ISO.plane(ctx, x, y + .4, w - .46, d - .8, 32, ISO.shade(c, .16));
+        ISO.box(ctx, x, y, w - .42, .38, 16, 16, braco);
+        almofada(x, y + .38, w - .42, d - .76);
+        ISO.box(ctx, x, y + d - .38, w - .42, .38, 16, 16, braco);
         ISO.box(ctx, x + w - .42, y, .42, d, 34, 16, c);
         return;
       }
       if (o.dir === 'n') {
         ISO.box(ctx, x, y, w, .42, 34, 16, c);
-        ISO.box(ctx, x, y + .42, .38, d - .42, 16, 16, ISO.shade(c, .06));
-        ISO.box(ctx, x + w - .38, y + .42, .38, d - .42, 16, 16, ISO.shade(c, .06));
-        ISO.plane(ctx, x + .4, y + .46, w - .8, d - .5, 32, ISO.shade(c, .16));
+        ISO.box(ctx, x, y + .42, .38, d - .42, 16, 16, braco);
+        almofada(x + .38, y + .42, w - .76, d - .42);
+        ISO.box(ctx, x + w - .38, y + .42, .38, d - .42, 16, 16, braco);
       } else {
         ISO.box(ctx, x, y, .42, d, 34, 16, c);
-        ISO.box(ctx, x + .42, y, w - .42, .38, 16, 16, ISO.shade(c, .06));
-        ISO.box(ctx, x + .42, y + d - .38, w - .42, .38, 16, 16, ISO.shade(c, .06));
-        ISO.plane(ctx, x + .46, y + .4, w - .5, d - .8, 32, ISO.shade(c, .16));
+        ISO.box(ctx, x + .42, y, w - .42, .38, 16, 16, braco);
+        almofada(x + .42, y + .38, w - .42, d - .76);
+        ISO.box(ctx, x + .42, y + d - .38, w - .42, .38, 16, 16, braco);
       }
     },
 
