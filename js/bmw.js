@@ -10,7 +10,7 @@
 const BMW = (() => {
 
   const foto = new Image();
-  foto.src = 'assets/bmw-e90-335i.webp';
+  foto.src = 'assets/bmw-e90-335i.webp?v=20261015d';
   const pronto = () => foto.complete && foto.naturalWidth > 0;
   const ouvintes = [];
   foto.addEventListener('load', () => ouvintes.forEach(f => f()));

@@ -36,6 +36,23 @@ const FURN = (() => {
     return add(Object.assign({ t: tipo, camada: 'frente', dk: seat.x + seat.y + 0.75 }, comum));
   }
 
+  /** assento com encosto na frente de quem senta (poltrona 'n'/'w', sofá
+      's'): a base entra antes do boneco e o encosto depois dele. Devolve a
+      base, que é o objeto do slot.                                       */
+  function emCamadas(o, partes = 1) {
+    const base = add(Object.assign({}, o, { camada: 'base' }));
+    // móvel largo (sofá) tem o encosto fatiado: cada fatia entra logo depois
+    // de quem senta na frente dela, e não depois de todo mundo
+    for (let i = 0; i < partes; i++) {
+      const a0 = i / partes, a1 = (i + 1) / partes;
+      const cx = o.x + (o.w || 1) * (a0 + a1) / 2;
+      const dk = partes > 1 ? cx + o.y + (o.d || 1) + .5
+                            : cx + o.y + (o.d || 1) / 2 + .9;
+      add(Object.assign({}, o, { camada: 'frente', fatia: [a0, a1], dk }));
+    }
+    return base;
+  }
+
   /* ===========================================================
      LAYOUT
      =========================================================== */
@@ -89,10 +106,11 @@ const FURN = (() => {
   add({ t: 'sofa',     x: 8.2, y: 12.0, w: 1.6, d: 3.6, dir: 'e', c: '#2b1d16' });     block(8.2, 12.0, 1.6, 3.6);
   add({ t: 'lowTable', x: 4.2, y: 14.0, w: 2.2, d: 1.4 });                            block(4.2, 14.0, 2.2, 1.4);
   add({ t: 'estante',  x: 11.4, y: 1.15, w: 2.4, d: .8 });                            block(11.4, 1.15, 2.4, .8);
-  add({ t: 'trophy',   x: 1.3, y: 1.3 });                                             block(1.3, 1.3, 1.2, 1.2);
+  add({ t: 'abajur',   x: 1.3, y: 1.3 });                                             block(1.3, 1.3, 1, 1);
   add({ t: 'plant',    x: 12.2, y: 15.6, k: 1 });                                     block(12.2, 15.6, 1, 1);
   add({ t: 'plant',    x: 1.4,  y: 6.6, k: 0 });                                      block(1.4, 6.6, 1, 1);
-  add({ t: 'cafe',     x: 12.1, y: 5.0 });                                            block(12.1, 5.0, 1, 1);
+  add({ t: 'cafe',     x: 10.3, y: 1.1 });                                            block(10.3, 1.1, 1, 1);
+  add({ t: 'abajur',   x: 10.4, y: 11.2 });                                           block(10.4, 11.2, 1, 1);
 
   /* ---------- SALA DE JOGOS ----------
      Um lounge sóbrio, sem neon: assoalho claro, painel de feltro grafite,
@@ -100,7 +118,8 @@ const FURN = (() => {
   add({ t: 'xadrez', x: 3.5, y: 24.2, w: 1.2, d: 1.2 });
   block(3.5, 24.2, 1.2, 1.2);
   [{ x: 2.0, face: 'e', sx: 2.65 }, { x: 4.9, face: 'w', sx: 5.55 }].forEach((p, i) => {
-    const pol = add({ t: 'poltrona', x: p.x, y: 24.15, w: 1.3, d: 1.3, face: p.face, c: '#3b2a1f' });
+    const o = { t: 'poltrona', x: p.x, y: 24.15, w: 1.3, d: 1.3, face: p.face, c: '#3b2a1f' };
+    const pol = p.face === 'w' ? emCamadas(o) : add(o);
     block(p.x, 24.15, 1.3, 1.3);
     restSlots.push({ id: 'XAD' + i, label: 'xadrez', x: p.sx, y: 24.8, facing: p.face,
                      sit: true, act: 'jogando xadrez', obj: pol });
@@ -112,7 +131,6 @@ const FURN = (() => {
   restSlots.push({ id: 'POOL0', label: 'sinuca', x: 8.6,  y: 26.3, facing: 'e', act: 'na sinuca', obj: pool });
   restSlots.push({ id: 'POOL1', label: 'sinuca', x: 15.0, y: 26.3, facing: 'w', act: 'na sinuca', obj: pool });
   restSlots.push({ id: 'POOL2', label: 'sinuca', x: 11.9, y: 24.3, facing: 's', act: 'na sinuca', obj: pool });
-  add({ t: 'luminariaSinuca', x: 9.6, y: 25, w: 4.6, d: 2.6, dk: 9.6 + 25 + 2.6 + 4.6 });
 
   const peb = add({ t: 'foosball', x: 9.8, y: 29.4, w: 4.2, d: 2 });
   block(9.8, 29.4, 4.2, 2);
@@ -121,15 +139,16 @@ const FURN = (() => {
 
   add({ t: 'tvWall', x: 18.4, y: 23.15, w: 5, d: 0.5 });
   add({ t: 'rug', x: 18.0, y: 24.2, w: 5.8, d: 4.4, c: '#2b2a29' });
-  const sofaL = add({ t: 'sofa', x: 18.6, y: 26.4, w: 4.6, d: 1.6, dir: 'n', c: '#2b1d16' });
+  // sofá de frente para o telão: o encosto fica do lado da câmera
+  const sofaL = emCamadas({ t: 'sofa', x: 18.6, y: 26.4, w: 4.6, d: 1.6, dir: 's', c: '#2b1d16' }, 3);
   block(18.6, 26.4, 4.6, 1.6);
   ['SOF0', 'SOF1', 'SOF2'].forEach((id, i) =>
-    restSlots.push({ id, label: 'sofá', x: 19.7 + i * 1.4, y: 27.3, facing: 'n',
+    restSlots.push({ id, label: 'sofá', x: 19.7 + i * 1.4, y: 26.95, facing: 'n',
                      sit: true, act: i === 1 ? 'jogando FIFA no telão' : 'assistindo o jogo', obj: sofaL }));
-  [24.4, 26.4].forEach((y, i) => {
-    const pol = add({ t: 'poltrona', x: 24.3, y, w: 1.3, d: 1.3, face: 'w', c: '#3b2a1f' });
-    block(24.3, y, 1.3, 1.3);
-    restSlots.push({ id: 'POL' + i, label: 'poltrona', x: 24.95, y: y + .65, facing: 'w',
+  [25.2, 27.2].forEach((y, i) => {
+    const pol = emCamadas({ t: 'poltrona', x: 24.4, y, w: 1.3, d: 1.3, face: 'w', c: '#3b2a1f' });
+    block(24.4, y, 1.3, 1.3);
+    restSlots.push({ id: 'POL' + i, label: 'poltrona', x: 25.05, y: y + .65, facing: 'w',
                      sit: true, act: i ? 'lendo no lounge' : 'assistindo o jogo', obj: pol });
   });
 
@@ -165,8 +184,8 @@ const FURN = (() => {
   /* ---------- CORREDOR / RECEPÇÃO ---------- */
   add({ t: 'elevator',  x: 46, y: 19.2, w: 1, d: 2 });
   add({ t: 'reception', x: 42.6, y: 19, w: 2.6, d: 1 }); block(42.6, 19, 2.6, 1);
-  add({ t: 'plant', x: 37.2, y: 19, k: 0 }); block(37.2, 19, 1, 1);
-  add({ t: 'plant', x: 34.0, y: 19, k: 1 }); block(34.0, 19, 1, 1);
+  add({ t: 'plant', x: 32.4, y: 19, k: 0 }); block(32.4, 19, 1, 1);
+  add({ t: 'plant', x: 33.6, y: 21, k: 1 }); block(33.6, 21, 1, 1);
 
   add({ t: 'rack', x: 8.4,  y: 19, label: 'API',       hue: 190 }); block(8.4, 19, 1.2, 1);
   add({ t: 'rack', x: 10.0, y: 19, label: 'AGENTES',   hue: 205 }); block(10.0, 19, 1.2, 1);
@@ -430,8 +449,23 @@ const FURN = (() => {
     sofa(ctx, o) {
       const { x, y, w, d } = o;
       const c = o.c || '#2b2340';
-      ISO.shadow(ctx, x + w / 2, y + d / 2, Math.max(w, d) * .55, .28);
-      ISO.box(ctx, x, y, w, d, 16, 0, ISO.shade(c, -.2));
+      if (o.camada !== 'frente') {
+        ISO.shadow(ctx, x + w / 2, y + d / 2, Math.max(w, d) * .55, .28);
+        ISO.box(ctx, x, y, w, d, 16, 0, ISO.shade(c, -.2));
+      }
+      if (o.dir === 's') {
+        // encosto do lado da câmera: quem senta olha para o norte
+        if (o.camada !== 'frente') {
+          ISO.box(ctx, x, y, .38, d - .42, 16, 16, ISO.shade(c, .06));
+          ISO.box(ctx, x + w - .38, y, .38, d - .42, 16, 16, ISO.shade(c, .06));
+          ISO.plane(ctx, x + .4, y + .04, w - .8, d - .5, 32, ISO.shade(c, .16));
+        }
+        if (o.camada !== 'base') {
+          const [a0, a1] = o.fatia || [0, 1];
+          ISO.box(ctx, x + w * a0, y + d - .42, w * (a1 - a0), .42, 34, 16, c);
+        }
+        return;
+      }
       if (o.dir === 'e') {
         // encosto do lado leste: quem senta olha para oeste
         ISO.box(ctx, x, y, w - .42, .38, 16, 16, ISO.shade(c, .06));
@@ -484,6 +518,11 @@ const FURN = (() => {
     tvWall(ctx, o, t) {
       const { x, y, w } = o;
       const h = 62, z = 46;
+      // pedestal: base no piso e duas colunas até a tela
+      ISO.shadow(ctx, x + w / 2, y + .5, w * .4, .25);
+      ISO.box(ctx, x + .3, y + .05, w - .6, .7, 4, 0, '#1b1d22', { top: '#2a2d33' });
+      for (const px of [.7, w - .85]) ISO.box(ctx, x + px, y + .1, .15, .15, z, 2, '#25282e');
+      ISO.box(ctx, x + .3, y + .05, w - .6, .5, 22, 4, '#1f2126', { top: '#2c2f35' });
       ISO.box(ctx, x, y, w, .22, h, z, '#0a0c14');
       faceY(ctx, x + .02, y + .22, w - .04, z + h - 4, (c, len) => {
         c.fillStyle = '#05070f'; c.fillRect(0, 0, len, h - 8);
@@ -680,22 +719,31 @@ const FURN = (() => {
       const { x, y, w, d } = o;
       const c = o.c || '#3b2a1f';
       const f = o.face || 'n';
-      ISO.shadow(ctx, x + w / 2, y + d / 2, Math.max(w, d) * .55, .28);
+      if (o.camada !== 'frente') ISO.shadow(ctx, x + w / 2, y + d / 2, Math.max(w, d) * .55, .28);
       const esp = .3, br = .22;
       // pés, assento e depois encosto e braços, do fundo para a frente
-      [[.1, .1], [w - .2, .1], [.1, d - .2], [w - .2, d - .2]]
-        .forEach(([px, py]) => ISO.box(ctx, x + px, y + py, .1, .1, 6, 0, '#1a1410'));
-      ISO.box(ctx, x + .04, y + .04, w - .08, d - .08, 12, 6, ISO.shade(c, -.1), { top: ISO.shade(c, .12) });
+      if (o.camada !== 'frente') {
+        [[.1, .1], [w - .2, .1], [.1, d - .2], [w - .2, d - .2]]
+          .forEach(([px, py]) => ISO.box(ctx, x + px, y + py, .1, .1, 6, 0, '#1a1410'));
+        ISO.box(ctx, x + .04, y + .04, w - .08, d - .08, 12, 6, ISO.shade(c, -.1), { top: ISO.shade(c, .12) });
+      }
       const enc = f === 'n' ? [x, y + d - esp, w, esp] : f === 's' ? [x, y, w, esp]
                 : f === 'e' ? [x, y, esp, d]          : [x + w - esp, y, esp, d];
       const bracos = (f === 'n' || f === 's')
         ? [[x, y, br, d], [x + w - br, y, br, d]]
         : [[x, y, w, br], [x, y + d - br, w, br]];
-      const pecas = [[enc[0] + enc[2] / 2 + enc[1] + enc[3] / 2, () =>
+      const pecas = [[enc[0] + enc[2] / 2 + enc[1] + enc[3] / 2, 'enc', () =>
         ISO.box(ctx, enc[0], enc[1], enc[2], enc[3], 30, 6, c, { top: ISO.shade(c, .18) })]];
-      for (const b of bracos) pecas.push([b[0] + b[2] / 2 + b[1] + b[3] / 2, () =>
+      for (const b of bracos) pecas.push([b[0] + b[2] / 2 + b[1] + b[3] / 2, 'braco', () =>
         ISO.box(ctx, b[0], b[1], b[2], b[3], 17, 6, ISO.shade(c, .04), { top: ISO.shade(c, .2) })]);
-      pecas.sort((a, b) => a[0] - b[0]).forEach(p => p[1]());
+      // de costas ('n'/'w') o encosto fica entre quem senta e a câmera: ele é
+      // pintado numa camada própria, depois do boneco
+      const cm = o.camada;
+      pecas.sort((a, b) => a[0] - b[0]).forEach(p => {
+        if (cm === 'frente' && p[1] !== 'enc') return;
+        if (cm === 'base' && p[1] === 'enc') return;
+        p[2]();
+      });
     },
 
     /* mesa de xadrez com o tabuleiro montado */
@@ -758,17 +806,27 @@ const FURN = (() => {
       });
     },
 
+    /* luminária de piso com cúpula de tecido, luz quente */
+    abajur(ctx, o) {
+      const { x, y } = o;
+      ISO.shadow(ctx, x + .5, y + .5, .35, .25);
+      ISO.cyl(ctx, x + .5, y + .5, .22, 3, 0, '#1c1d20');
+      ISO.cyl(ctx, x + .5, y + .5, .035, 78, 3, '#b39a5c');
+      ISO.cyl(ctx, x + .5, y + .5, .26, 20, 78, '#e9e1d0');
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const p = S(x + .5, y + .5, 84); ISO.glow(ctx, p.x, p.y, 70, '#ffdca0', .16);
+      ctx.restore();
+    },
+
     /* máquina de espresso sobre um gaveteiro */
     cafe(ctx, o, t) {
       const { x, y } = o;
       ISO.shadow(ctx, x + .5, y + .5, .55, .26);
       ISO.box(ctx, x + .05, y + .1, .9, .8, 36, 0, '#2a1d14', { top: '#3a281b' });
-      ISO.box(ctx, x + .2, y + .2, .6, .5, 22, 36, '#7d8794', { top: '#aeb6c1' });
+      ISO.box(ctx, x + .2, y + .2, .6, .5, 22, 36, '#2a2c31', { top: '#8d96a3' });
       ISO.box(ctx, x + .2, y + .66, .6, .08, 6, 44, '#1b1f27');
       ISO.cyl(ctx, x + .5, y + .76, .08, 6, 38, '#e9edf8');
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      const p = S(x + .5, y + .7, 52); ISO.glow(ctx, p.x, p.y, 8, '#00b3ff', .12 + .06 * Math.sin(t * 2));
-      ctx.restore();
+      void t;
     },
 
     meetTable(ctx, o, t) {
@@ -1023,20 +1081,20 @@ const FURN = (() => {
       ISO.box(ctx, est[0], est[1], est[2], est[3], H * .8, ASSENTO + 3, trim);
     };
     const painel = () => {
-      bx(seg(.03, .97, .18, .34), H, ASSENTO, cor, { top: corL });
-      bx(seg(-.02, .20, .32, .30), H * .74, ASSENTO, corD);
-      bx(seg(.80, 1.02, .32, .30), H * .74, ASSENTO, corD);
       if (costasNaFrente) {
-        // costas viradas para a câmera: casca preta, com costura e placa
-        bx(seg(.03, .97, .185, .325), H, ASSENTO, '#0a0c12', { top: '#161a24' });
-        const cst = seg(.46, .54, .2, .32);
-        ISO.box(ctx, cst[0], cst[1], cst[2], cst[3], H * .92, ASSENTO, '#05070b');
-        const plc = seg(.34, .66, .205, .318);
-        ISO.box(ctx, plc[0], plc[1], plc[2], plc[3], H * .1, ASSENTO + H * .56, '#20252f');
+        // de costas para a câmera: uma casca só, lisa. As abas, a costura e a
+        // plaqueta como caixas soltas pareciam peças desmontadas
+        bx(seg(.03, .97, .2, .32), H, ASSENTO, '#101319', { top: corL });
+        return;
+      }
+      bx(seg(.03, .97, .18, .34), H, ASSENTO, cor, { top: corL });
+      if (gamer) {
+        bx(seg(-.02, .20, .32, .30), H * .74, ASSENTO, corD);
+        bx(seg(.80, 1.02, .32, .30), H * .74, ASSENTO, corD);
       }
     };
-    if (costasNaFrente) { estofado(); painel(); }
-    else                { painel();  estofado(); }
+    if (costasNaFrente) painel();
+    else              { painel(); estofado(); }
 
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const tp = seg(.03, .97, .18, .34);

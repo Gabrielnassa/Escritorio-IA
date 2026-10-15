@@ -375,6 +375,11 @@ function syncActors() {
     if (ac.a.boss) {
       const s = FURN.workSlots.find(s => s.id === ac.a.slotId);
       if (s) ac.takeSlot(s);
+      // o dono já está na mesa quando o escritório abre; não sobe pelo elevador
+      if (s && !ac.jaPosicionado && ac.a.status === 'trabalhando') {
+        ac.x = s.x; ac.y = s.y; ac.path = []; ac.fine = null; ac.arrive();
+      }
+      ac.jaPosicionado = true;
     }
   }
 }

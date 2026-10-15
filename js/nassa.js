@@ -37,8 +37,8 @@ const NASSA = (() => {
   }
 
   /* imagens do logo (PNG) */
-  const logo = new Image();  logo.src  = 'assets/nassatech-logo-transparente.png';
-  const icone = new Image(); icone.src = 'assets/nassatech-icone.png';
+  const logo = new Image();  logo.src  = 'assets/nassatech-logo-transparente.png?v=20261015d';
+  const icone = new Image(); icone.src = 'assets/nassatech-icone.png?v=20261015d';
   const pronto = img => img.complete && img.naturalWidth > 0;
 
   /* ---------------- hora do dia ---------------- */
