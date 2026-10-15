@@ -610,7 +610,7 @@ const WORLD = (() => {
 
   /* placas paradas só repintam quando algo nelas muda */
   const PLACA_FIXA = {
-    bmw:  () => BMW.cor,
+    bmw:  () => BMW.pronto ? 'ok' : 'carregando',
     logo: () => NASSA.pronto(NASSA.logo) ? 'ok' : 'carregando'
   };
   const ESC_PLACA = 2;     // pintadas em 2x para continuarem nítidas no zoom
@@ -789,7 +789,8 @@ const WORLD = (() => {
 
   /* ---- o quadro da BMW, com luminária de quadro em cima ---- */
   function signBmw(c, len, rgbOn) {
-    const w = len - 50, h = 90, x0 = (len - w) / 2, y0 = 12;
+    // formato do quadro ≈ o da foto recortada no carro (2,6 : 1)
+    const h = 96, w = 250, x0 = (len - w) / 2, y0 = 8;
     // luminária de galeria (latão) e a luz lavando o quadro
     const gl = c.createRadialGradient(len / 2, y0 - 4, 4, len / 2, y0 + 30, w * .6);
     gl.addColorStop(0, 'rgba(255,226,170,.28)'); gl.addColorStop(1, 'rgba(255,226,170,0)');
@@ -932,7 +933,7 @@ const WORLD = (() => {
       u = (s.y + s.len - y) * ISO.TW;
     }
     const v = WALL_H - z;
-    return u > 20 && u < len - 20 && v > 2 && v < 104;
+    return u > 32 && u < len - 32 && v > 2 && v < 106;
   }
 
   /* ---------- pontos de interesse ---------- */

@@ -12,7 +12,7 @@ verdade.
 
 | Sala | O que tem |
 | --- | --- |
-| **Sala do chefe** | A mesa do Gabriel, painel ripado de madeira, o **quadro da BMW 335i E90 M Sport LCI (2009/2010)** com as rodas **Style 359M de 19" prata**, estante, estar com sofá de couro, máquina de café e vista para a Ponte Estaiada |
+| **Sala do chefe** | A mesa do Gabriel, painel ripado de madeira, o **quadro da BMW 335i E90 M Sport LCI (2009/2010)** preta com as rodas **Style 359M de 19" prata**, estante, estar com sofá de couro, máquina de café e vista para a Ponte Estaiada |
 | **Sala dos devs** | 12 estações com monitor, painel com a equipe ao vivo, quadro de **CI/CD** (build, test, deploy) e o logo jateado no vidro da fachada |
 | **Sala de reunião** | Aquário de vidro com mesa para oito e telão com o logo. É onde acontecem a daily e a reunião dos agentes |
 | **Sala de jogos** | Três fliperamas, sinuca, pebolim, videogame no telão, puffs e um balcão de café, com painel acústico e o neon **NASSA PLAY** |
@@ -36,20 +36,15 @@ O prédio tem características reais:
 
 ### O quadro da BMW
 
-O carro é desenhado em vetor (`js/bmw.js`), com as proporções do E90 real:
-4,52 m de comprimento, 2,76 m de entre-eixos e 1,42 m de altura. Aparecem os
-detalhes do **335i M Sport LCI**:
+Atrás da mesa do chefe fica o quadro da **BMW 335i E90 M Sport LCI
+(2009/2010)** preta, com as rodas **Style 359M de 19" prata**, em pixel art
+(`assets/bmw-e90-335i.webp`). O quadro tem moldura preta, paspatur, luminária
+de galeria e plaqueta dourada. Clique nele para abrir a versão grande. Uma
+miniatura da mesma foto fica num porta-retrato da estante.
 
-- rodas **Style 359M** de 19" em prata, com 10 raios em "Y" e pneu de perfil
-  baixo;
-- lanterna de LED em "L" e seta integrada no retrovisor, que são do LCI;
-- para-choques e saias M, emblema M no para-lama e frisos Shadowline pretos;
-- a dobra Hofmeister na coluna C, os vincos laterais e a antena barbatana.
-
-Clique no quadro, na parede atrás da mesa do chefe, para abrir a versão
-grande. Ali dá para trocar a cor entre as cores de fábrica do E90 LCI
-(Alpine White, Black Sapphire, Le Mans Blue, Montego Blue, Space Grey,
-Titanium Silver e Melbourne Red). A escolha fica salva no navegador.
+Para trocar a foto, substitua `assets/bmw-e90-335i.webp` por outra imagem com
+o carro de lado. O recorte do quadro (`CARRO` em `js/bmw.js`) mantém o carro
+inteiro.
 
 ### Logo
 
@@ -184,12 +179,12 @@ reuniao.js         reunião dos agentes (Claude Code em cada pasta)
 avisos.js          ntfy e CallMeBot
 index.html         a tela
 js/nassa.js        cores da marca, vista da cidade, céu e a fachada da torre
-js/bmw.js          o quadro da BMW 335i E90 M Sport LCI (vetor)
+js/bmw.js          o quadro da BMW 335i E90 M Sport LCI (foto em pixel art)
 js/world.js        a planta: salas, pisos, fachada de vidro e placas
 js/furniture.js    móveis e estações de trabalho
 js/                o resto do motor: bonecos, caminhos, painéis
 css/style.css      tema
-assets/            a logo da Nassa Tech em PNG
+assets/            a logo da Nassa Tech em PNG e a foto da BMW
 exemplo-agente/    o menor sistema que o escritório sabe operar
 data/              seus dados (fora do git, menos os exemplos)
 ```

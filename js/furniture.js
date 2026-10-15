@@ -184,7 +184,6 @@ const FURN = (() => {
      — mesa, arcade, rack, TV, planta — continua sendo desenhado ao vivo. */
   const ALTURA_CACHE = {
     chairGamer: 78, chairBoss: 84, chairSimple: 58, chairGuest: 64, expositor: 96,
-    estante: 150,
     pilhaCaixas: 118, poolTable: 56, foosball: 52, sofa: 60,
     rug: 12, lowTable: 40, cooler: 64
   };
@@ -671,8 +670,8 @@ const FURN = (() => {
             xx += bw + .8; i++;
           }
         }
-        // miniatura do carro numa prateleira
-        BMW.carro(c, len * .56, 6 + 31 + 27, .022);
+        // porta-retrato do carro numa prateleira
+        BMW.miniatura(c, len * .54, 6 + 31 + 27, 26);
         // troféu pequeno
         c.fillStyle = '#c9a227'; c.fillRect(len * .36, 6 + 93 + 12, 6, 15);
         c.beginPath(); c.arc(len * .36 + 3, 6 + 93 + 11, 6, Math.PI, 0); c.fill();

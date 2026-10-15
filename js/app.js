@@ -1438,15 +1438,12 @@ function noQuadroBmw(e) {
 }
 
 function abrirBmw() {
-  const cores = Object.entries(BMW.CORES);
   mbody.innerHTML = `
     <div class="mhead" style="margin-bottom:12px"><div>
       <h3>BMW 335i E90 M Sport LCI · 2010</h3>
-      <p>O quadro da sala do chefe. Sedã E90 já na versão LCI (2009/2010), pacote M Sport e rodas Style 359M de 19" em prata.</p>
+      <p>O quadro da sala do chefe. Sedã E90 preto já na versão LCI (2009/2010), pacote M Sport e rodas Style 359M de 19" em prata, em pixel art.</p>
     </div></div>
     <canvas class="bmw-tela" id="bmw-tela"></canvas>
-    <div class="bmw-cores">${cores.map(([k, c]) =>
-      `<button class="bmw-cor${k === BMW.cor ? ' on' : ''}" data-cor="${k}"><i style="background:${c.base}"></i>${esc(c.nome)} <span style="color:var(--txt-dim)">${c.codigo}</span></button>`).join('')}</div>
     <div class="bmw-ficha">
       <div><b>Motor</b><span>N54 3.0 seis em linha biturbo · 306 cv</span></div>
       <div><b>Rodas</b><span>Style 359M · 19" · prata · Y-spoke</span></div>
@@ -1474,11 +1471,7 @@ function abrirBmw() {
     BMW.quadro(c, W * .08, H * .07, W * .84, H * .76, { legenda: true });
   };
   requestAnimationFrame(pinta);
-  mbody.querySelectorAll('.bmw-cor').forEach(b => b.addEventListener('click', () => {
-    BMW.setCor(b.dataset.cor);
-    mbody.querySelectorAll('.bmw-cor').forEach(x => x.classList.toggle('on', x === b));
-    pinta();
-  }));
+  if (!BMW.pronto) BMW.foto.addEventListener('load', pinta, { once: true });
 }
 // a ficha comum não usa o modal largo
 new MutationObserver(() => {
