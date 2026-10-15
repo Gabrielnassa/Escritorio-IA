@@ -411,12 +411,15 @@ for (let y = 0; y < WORLD.H; y++) {
   }
 }
 for (const o of FURN.items) staticDraw.push({ k: FURN.depth(o), t: 'furn', o, bb: caixaMovel(o) });
+// nomes das salas no piso: depois dos tapetes (k = -1), antes de todo o resto
+staticDraw.push({ k: -0.5, t: 'rotulos' });
 staticDraw.sort((a, b) => a.k - b.k);
 
 /* ===========================================================
    RENDER
    =========================================================== */
 let T0 = performance.now(), t = 0;
+const elevador = FURN.items.find(o => o.t === 'elevator');
 let bgCache = null;
 const elFps = document.getElementById("fps");
 let fpsN = 0, fpsT = 0, msDesenho = 0;
@@ -430,11 +433,15 @@ function frame(now) {
 
   // ocupação das mesas para o brilho dos monitores
   for (const o of FURN.items) if (o.busy !== undefined) o.busy = false;
+  let noElevador = false;
   for (const ac of actors.values()) {
     ac.update(dt);
     if (ac.slot && ac.slot.obj && ac.seated && ac.a.status === 'trabalhando' && ac.microBreak <= 0)
       ac.slot.obj.busy = true;
+    if (!ac.hidden && Math.hypot(ac.x - WORLD.SPAWN.x, ac.y - WORLD.SPAWN.y) < 1.6) noElevador = true;
   }
+  // a porta do elevador abre enquanto alguém chega ou vai embora
+  if (elevador) elevador.abre = Math.max(0, Math.min(1, (elevador.abre || 0) + (noElevador ? dt * 2.2 : -dt * 1.4)));
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -448,7 +455,6 @@ function frame(now) {
 
   WORLD.drawFloor(ctx, opts.rgb ? t : 0);
   WORLD.drawDecals(ctx, t);
-  WORLD.drawRoomLabels(ctx);
 
   // retângulo visível, em coordenadas de mundo
   const meiaL = cw / (2 * cam.z), meiaA = ch / (2 * cam.z);
@@ -479,6 +485,7 @@ function frame(now) {
     if (it.t === 'wall')       WORLD.drawWallTile(ctx, it.x, it.y, opts.rgb ? t : 0, opts.rgb, cam.z);
     else if (it.t === 'door')  WORLD.drawDoorTile(ctx, it.x, it.y, opts.rgb ? t : 0);
     else if (it.t === 'furn')  FURN.drawItem(ctx, it.o, t);
+    else if (it.t === 'rotulos') WORLD.drawRoomLabels(ctx);
     else                       it.ac.draw(ctx, t);
   }
 
@@ -1489,11 +1496,12 @@ new MutationObserver(() => {
 const entrada = $('#entrada');
 function abrirEntrada() {
   entrada.classList.remove('hidden', 'saindo');
+  CIDADE.iniciar($('#ent-cidade'));
 }
 function subirAoAndar() {
   entrada.classList.add('saindo');
   try { sessionStorage.setItem('nassa-entrou', '1'); } catch (e) { /* sem storage */ }
-  setTimeout(() => entrada.classList.add('hidden'), 600);
+  setTimeout(() => { entrada.classList.add('hidden'); CIDADE.parar(); }, 600);
   fit();
 }
 $('#ent-subir').addEventListener('click', subirAoAndar);

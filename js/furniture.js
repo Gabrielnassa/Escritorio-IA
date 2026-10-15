@@ -182,7 +182,9 @@ const FURN = (() => {
   add({ t: 'plant', x: 33.4, y: 31.2, k: 0 });               block(33.4, 31.2, 1, 1);
 
   /* ---------- CORREDOR / RECEPÇÃO ---------- */
-  add({ t: 'elevator',  x: 46, y: 19.2, w: 1, d: 2 });
+  // as portas ficam no plano da parede leste: entram depois das paredes
+  // (x 47, y 19..21) para o parapeito de vidro não passar na frente delas
+  add({ t: 'elevator',  x: 46, y: 19.2, w: 1, d: 2, dk: 69.5 });
   add({ t: 'reception', x: 42.6, y: 19, w: 2.6, d: 1 }); block(42.6, 19, 2.6, 1);
   add({ t: 'plant', x: 32.4, y: 19, k: 0 }); block(32.4, 19, 1, 1);
   add({ t: 'plant', x: 33.6, y: 21, k: 1 }); block(33.6, 21, 1, 1);
@@ -624,16 +626,62 @@ const FURN = (() => {
       });
     },
 
+    /* hall dos elevadores: duas cabines com porta de aço escovado, mostrador
+       do andar e botoeira. A cabine onde o pessoal chega abre a porta
+       (o.abre, de 0 a 1, vem do app.js) quando tem alguém entrando ou saindo */
     elevator(ctx, o, t) {
       const { x, y, d } = o;
       const neon = NASSA.led(t, x + y);
+      const andar = String((window.ESCRITORIO && ESCRITORIO.andar) || 18);
       WORLD.wallFace(ctx, 'w', x, y, d, 96, (c, len) => {
-        c.fillStyle = '#0a0d18'; ISO.rrect(c, 4, 6, len - 8, 78, 4); c.fill();
-        c.strokeStyle = ISO.rgba(neon, .8); c.lineWidth = 2; c.stroke();
-        c.fillStyle = ISO.rgba(neon, .35); c.fillRect(len / 2 - 1, 8, 2, 74);
-        c.textAlign = 'center'; c.font = "700 9px 'Barlow Semi Condensed', sans-serif";
-        c.fillStyle = ISO.rgba(neon, .9);
-        c.fillText('▲ ELEVADORES', len / 2, 0);
+        // painel de pedra escura do hall
+        c.fillStyle = '#121620'; c.fillRect(0, 2, len, 94);
+        c.fillStyle = '#0b0e16'; c.fillRect(0, 2, len, 13);
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.font = "700 7.5px 'Barlow Semi Condensed', sans-serif";
+        c.fillStyle = ISO.rgba(neon, .9); c.letterSpacing = '2px';
+        c.fillText('ELEVADORES', len / 2, 9);
+        c.letterSpacing = '0px';
+        const cw = 46, gap = len - 2 * cw - 20;
+        const cabines = [10, 10 + cw + gap];
+        // a cabine da chegada é a que fica do lado da recepção (u maior)
+        cabines.forEach((u0, i) => {
+          const abre = i === 1 ? Math.max(0, Math.min(1, o.abre || 0)) : 0;
+          // batente
+          c.fillStyle = '#3a4252'; c.fillRect(u0 - 3, 25, cw + 6, 71);
+          c.fillStyle = '#596274'; c.fillRect(u0 - 3, 25, cw + 6, 2);
+          // mostrador do andar
+          c.fillStyle = '#05070b'; c.fillRect(u0 + cw / 2 - 11, 16, 22, 8);
+          c.font = "700 7px 'JetBrains Mono', 'Consolas', monospace";
+          c.fillStyle = ISO.rgba(neon, .95);
+          c.fillText((abre > 0 ? '▲' : ' ') + andar, u0 + cw / 2, 20.5);
+          // vão da cabine: luz quente lá dentro quando a porta abre
+          c.fillStyle = '#05070b'; c.fillRect(u0, 28, cw, 68);
+          if (abre > 0) {
+            const g = c.createLinearGradient(0, 28, 0, 96);
+            g.addColorStop(0, `rgba(255,231,176,${(.55 * abre).toFixed(2)})`);
+            g.addColorStop(1, `rgba(255,214,150,${(.25 * abre).toFixed(2)})`);
+            c.fillStyle = g; c.fillRect(u0, 28, cw, 68);
+          }
+          // folhas da porta, correndo para os lados
+          const folha = cw / 2 * (1 - abre * .92);
+          const aco = (ua, ub) => {
+            const g = c.createLinearGradient(ua, 0, ub, 0);
+            g.addColorStop(0, '#7b8494'); g.addColorStop(.5, '#bcc4d0'); g.addColorStop(1, '#858e9e');
+            c.fillStyle = g; c.fillRect(ua, 28, ub - ua, 68);
+            c.fillStyle = 'rgba(255,255,255,.08)';
+            for (let k = ua + 3; k < ub - 1; k += 4) c.fillRect(k, 28, 1, 68);
+          };
+          aco(u0, u0 + folha);
+          aco(u0 + cw - folha, u0 + cw);
+          c.fillStyle = 'rgba(10,12,18,.55)';
+          if (abre < .05) c.fillRect(u0 + cw / 2 - .6, 28, 1.2, 68);
+        });
+        // botoeira entre as cabines
+        const ub = len / 2;
+        c.fillStyle = '#2a303d'; ISO.rrect(c, ub - 4, 50, 8, 16, 2); c.fill();
+        c.fillStyle = ISO.rgba(neon, .95); c.beginPath(); c.arc(ub, 55, 1.6, 0, 7); c.fill();
+        c.fillStyle = '#4a5468'; c.beginPath(); c.arc(ub, 61, 1.6, 0, 7); c.fill();
       });
     },
 
@@ -1052,15 +1100,29 @@ const FURN = (() => {
       return;
     }
 
-    /* ---------- base estrela de 5 pontas + rodízios ---------- */
+    /* ---------- base estrela de 5 pontas + rodízios ----------
+       Cada perna sai do pistão e desce até o rodízio. Antes só havia um
+       toco no meio da perna, e os rodízios pareciam copinhos soltos no chão. */
     {
+      const pontas = [];
       for (let i = 0; i < 5; i++) {
         const a = (i / 5) * Math.PI * 2 + .35;
-        const ex = cx + Math.cos(a) * w * .36, ey = cy + Math.sin(a) * d * .36;
-        ISO.box(ctx, (cx + ex) / 2 - .075, (cy + ey) / 2 - .075, .15, .15, 3, 1, '#1b1f29');
-        ISO.cyl(ctx, ex, ey, .07, 4, 0, '#39415a');
+        pontas.push([cx + Math.cos(a) * w * .36, cy + Math.sin(a) * d * .36]);
       }
-      ISO.cyl(ctx, cx, cy, .14, 4, 3, '#272d3b');
+      pontas.sort((p, q) => (p[0] + p[1]) - (q[0] + q[1]));   // do fundo para a frente
+      const centro = S(cx, cy, 5);
+      ctx.save();
+      ctx.lineCap = 'round';
+      for (const [ex, ey] of pontas) {
+        const e = S(ex, ey, 3);
+        ctx.strokeStyle = '#151922'; ctx.lineWidth = 3.4;
+        ctx.beginPath(); ctx.moveTo(centro.x, centro.y); ctx.lineTo(e.x, e.y); ctx.stroke();
+        ctx.strokeStyle = 'rgba(150,160,185,.35)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(centro.x, centro.y - 1); ctx.lineTo(e.x, e.y - 1); ctx.stroke();
+      }
+      ctx.restore();
+      for (const [ex, ey] of pontas) ISO.cyl(ctx, ex, ey, .055, 3, 0, '#20242e');
+      ISO.cyl(ctx, cx, cy, .13, 4, 3, '#272d3b');
       ISO.cyl(ctx, cx, cy, .075, ASSENTO - 7, 6, '#8e97ab');   // pistão cromado
     }
 

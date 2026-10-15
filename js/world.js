@@ -352,22 +352,28 @@ const WORLD = (() => {
   }
 
 
-  /* ---- rótulo flutuante de cada sala ---- */
+  /* ---- nome de cada sala, pintado no piso ----
+     Deitado na perspectiva do chão, ao longo do eixo x, como um adesivo
+     de piso. Em pé, o texto atravessava as paredes de vidro e os racks.
+     Cada ponto fica a mais de 1,25 tile da parede da frente (o parapeito
+     de 40 px tapa essa faixa do piso) e longe de móveis altos.         */
   function drawRoomLabels(ctx) {
-    const put = (r, cx, cy) => {
+    const put = (txt, cor, cx, cy) => {
       const p = ISO.toScreen(cx, cy, 0);
       ctx.save();
-      ctx.textAlign = 'center';
-      ctx.font = '600 13px Barlow Semi Condensed, sans-serif';
-      ctx.fillStyle = ISO.rgba(r.accent, .34);
-      ctx.letterSpacing = '4px';
-      ctx.fillText(r.name, p.x, p.y);
+      ctx.transform(ISO.HW / ISO.TW, ISO.HH / ISO.TW, -ISO.HW / ISO.TW, ISO.HH / ISO.TW, p.x, p.y);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '700 22px Barlow Semi Condensed, sans-serif';
+      ctx.letterSpacing = '5px';
+      ctx.fillStyle = ISO.rgba(cor, .30);
+      ctx.fillText(txt, 0, 0);
       ctx.restore();
     };
-    put(ROOMS.diretoria, 7, 15.4);
-    put(ROOMS.servico, 33, 16.2);
-    put(ROOMS.lounge, 14.5, 31.6);
-    put(ROOMS.reuniao, 40, 31.4);
+    put(ROOMS.diretoria.name, ROOMS.diretoria.accent, 3.7, 16.1);
+    put(ROOMS.servico.name,   ROOMS.servico.accent,   32.5, 15.9);
+    put(ROOMS.lounge.name,    ROOMS.lounge.accent,    20.5, 30.9);
+    put(ROOMS.reuniao.name,   ROOMS.reuniao.accent,   39.6, 31.2);
+    put('RECEPÇÃO',           '#9fb3c8',              41.0, 20.4);
   }
 
   const cacheGrad = new Map();

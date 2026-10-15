@@ -27,10 +27,12 @@ O prédio tem características reais:
 - **Laje e andar de baixo:** a borda do piso mostra a laje de concreto e a
   fachada de vidro descendo, então o escritório aparece como uma fatia da
   torre.
-- **Tela de entrada (botão 🏢 Torre):** a torre vista da avenida, com 24
-  andares, o prédio baixo do teatro com teto verde, a praça aberta com a
-  **escultura da baleia** e a Faria Lima com a ciclovia vermelha. O 18º andar,
-  o da Nassa Tech, fica aceso.
+- **Tela de entrada (botão 🏢 Torre):** a torre à noite em pixel art
+  (`assets/torre-noite.webp`), com o prédio do teatro de teto verde e a praça
+  aberta com a **escultura da baleia**. Em tela larga, o resto da Faria Lima é
+  desenhado em volta no mesmo estilo (`js/cidade.js`): estrelas, luzes de
+  obstáculo piscando no alto dos prédios, janelas acesas, árvores, postes e
+  carros passando na avenida.
 - **Pisos reais:** madeira escura na sala do chefe, madeira clara na sala de
   jogos, carpete em placas nos devs e na reunião e porcelanato na circulação.
 
@@ -178,7 +180,8 @@ server.js          servidor: arquivos da tela, API, sobe/vigia sistemas, espelho
 reuniao.js         reunião dos agentes (Claude Code em cada pasta)
 avisos.js          ntfy e CallMeBot
 index.html         a tela
-js/nassa.js        cores da marca, vista da cidade, céu e a fachada da torre
+js/nassa.js        cores da marca, vista da cidade pelas janelas e o céu
+js/cidade.js       a cidade em pixel art em volta da torre, na tela de entrada
 js/bmw.js          o quadro da BMW 335i E90 M Sport LCI (foto em pixel art)
 js/world.js        a planta: salas, pisos, fachada de vidro e placas
 js/furniture.js    móveis e estações de trabalho
