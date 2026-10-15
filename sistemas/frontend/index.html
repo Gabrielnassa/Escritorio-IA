@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estúdio de Landing Pages · Nassa Tech</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="nt-top">
+  <div class="nt-emoji">🎨</div>
+  <div><h1>Estúdio de Landing Pages</h1><div class="nt-quem">Lucas · Front-end · React &amp; Next.js</div></div>
+  <div class="nt-acoes">
+    <button class="btn mini ghost" id="bRestaurar" type="button" title="Volta aos projetos de exemplo"><span>↺ Restaurar<span class="longo"> exemplo</span></span></button>
+    <button class="btn" id="bCopiar" type="button"><span>Copiar<span class="longo"> HTML</span></span></button>
+    <button class="btn primary" id="bExportar" type="button">⬇ Exportar HTML</button>
+    <img class="nt-marca" src="../../assets/nassatech-logo-transparente.png" alt="Nassa Tech">
+  </div>
+</header>
+
+<main class="nt-main">
+  <div class="estudio" id="estudio" data-vista="editar">
+
+    <!-- editor: projeto aberto, seções, tema e lista de projetos -->
+    <aside class="editor" id="editor" aria-label="Editor da página">
+      <div class="editor-topo">
+        <label class="rot" for="selProj">Projeto aberto</label>
+        <div class="proj-linha">
+          <select class="campo" id="selProj"></select>
+          <button class="btn mini" id="bNovo" type="button">+ Novo</button>
+        </div>
+        <small class="dim" id="salvo" aria-live="polite"></small>
+      </div>
+      <div class="abas" role="tablist" aria-label="Partes do editor">
+        <button class="aba on" type="button" role="tab" data-aba="secoes" aria-selected="true">Seções</button>
+        <button class="aba" type="button" role="tab" data-aba="tema" aria-selected="false">Tema</button>
+        <button class="aba" type="button" role="tab" data-aba="projetos" aria-selected="false">Projetos <span id="contaProj"></span></button>
+      </div>
+      <div class="editor-corpo" id="editorCorpo">
+        <div class="painel-aba on" data-aba="secoes">
+          <p class="titulo-secao">Seções da página <span id="contaSec" class="conta"></span></p>
+          <ol class="secoes" id="listaSec"></ol>
+          <p class="dica">Arraste ou use ↑ ↓ para mudar a ordem. Topo e rodapé ficam fixos. Clique numa seção da prévia para editá-la.</p>
+          <div id="formSec"></div>
+        </div>
+        <div class="painel-aba" data-aba="tema" id="painelTema"></div>
+        <div class="painel-aba" data-aba="projetos" id="painelProj"></div>
+      </div>
+    </aside>
+
+    <!-- prévia ao vivo -->
+    <section class="previa" id="previa" aria-label="Prévia da página">
+      <div class="previa-barra">
+        <div class="seg" role="group" aria-label="Tamanho da tela">
+          <button type="button" data-disp="desktop" aria-pressed="true">🖥️ Desktop</button>
+          <button type="button" data-disp="tablet" aria-pressed="false">Tablet</button>
+          <button type="button" data-disp="celular" aria-pressed="false">📱 Celular</button>
+        </div>
+        <span class="tam mono" id="tam"></span>
+        <span class="previa-nome" id="previaNome"></span>
+        <button class="btn mini ghost" id="bAba" type="button"><span>Abrir<span class="longo"> em nova aba</span> ↗</span></button>
+      </div>
+      <div class="palco" id="palco">
+        <div class="moldura" id="moldura"><iframe id="frame" title="Prévia da landing page"></iframe></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- no celular, editor e prévia não cabem lado a lado -->
+  <div class="vista-alterna seg" role="group" aria-label="Alternar entre editar e visualizar">
+    <button type="button" data-vista="editar" aria-pressed="true">✏️ Editar</button>
+    <button type="button" data-vista="visualizar" aria-pressed="false">👁️ Visualizar</button>
+  </div>
+</main>
+
+<!-- novo projeto / renomear -->
+<div class="modal-fundo" id="mProj" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mProjTit">
+    <h3 id="mProjTit">Novo projeto</h3>
+    <form class="form" id="fProj" novalidate>
+      <div class="par">
+        <div><label class="rot" for="pCli">Cliente</label><input class="campo" id="pCli" list="listaCli" autocomplete="off" placeholder="Ex.: Imobiliária Horizonte" required></div>
+        <div><label class="rot" for="pNome">Nome do projeto</label><input class="campo" id="pNome" autocomplete="off" placeholder="Ex.: Site principal" required></div>
+      </div>
+      <datalist id="listaCli"></datalist>
+      <fieldset class="modelos-radio" id="mModelos">
+        <legend class="rot">Começar a partir do modelo</legend>
+        <div class="modelos-op" id="mModelosOp"></div>
+      </fieldset>
+      <p class="erro" id="pErro" role="alert" hidden></p>
+      <div class="rodape">
+        <button type="button" class="btn ghost" id="bProjCancelar">Cancelar</button>
+        <button type="submit" class="btn primary" id="bProjOk">Criar projeto</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="../base.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

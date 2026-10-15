@@ -1,0 +1,173 @@
+/* ===========================================================
+   Estúdio de Landing Pages — só o que é deste sistema.
+   Cores, botões, campos, abas e modal vêm de ../base.css.
+   =========================================================== */
+
+/* o estúdio usa a tela toda: editor fixo à esquerda, prévia ocupando o resto */
+.nt-main{max-width:1720px;padding-bottom:16px}
+.estudio{display:grid;grid-template-columns:minmax(320px,390px) minmax(0,1fr);gap:16px;
+  height:var(--alto,calc(100vh - 110px));min-height:520px}
+.editor,.previa{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden}
+
+/* foco visível também nos botões que não usam .btn */
+.estudio button:focus-visible,.vista-alterna button:focus-visible,.modal button:focus-visible,
+.estudio input:focus-visible,.estudio select:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* rótulo em <span>/<legend> (o base.css só estiliza label.rot) */
+span.rot,legend.rot{display:block;font-size:12px;color:var(--txt-dim);letter-spacing:.4px;margin:0 0 5px;padding:0}
+.badge{white-space:nowrap}
+
+/* ---------- editor ---------- */
+.editor-topo{padding:14px 14px 0}
+.proj-linha{display:flex;gap:8px}
+.proj-linha .campo{flex:1;min-width:0}
+#salvo{display:block;margin-top:6px;font-size:12px;min-height:17px}
+.editor .abas{margin:6px 0 0;padding:0 6px}
+.editor .aba{padding:10px 12px}
+.editor-corpo{flex:1;min-height:0;overflow:auto;padding:14px 14px 24px}
+.titulo-secao .conta{letter-spacing:.4px;text-transform:none;color:var(--acc);margin-left:4px}
+.dica{font-size:12.5px;color:var(--txt-dim);margin:8px 0 0;line-height:1.4}
+
+/* lista de seções */
+.secoes{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.sec-linha{display:flex;align-items:center;gap:6px;padding:5px 5px 5px 6px;border:1px solid var(--line);
+  border-radius:10px;background:var(--bg-2);transition:border-color .15s,background .15s}
+.sec-linha.sel{border-color:var(--acc);background:rgba(0,179,255,.08)}
+.sec-linha.off .sec-nome{color:var(--txt-dim)}
+.sec-linha.arrastando{opacity:.4}
+.sec-linha.alvo-cima{box-shadow:0 -3px 0 var(--acc)}
+.sec-linha.alvo-baixo{box-shadow:0 3px 0 var(--acc)}
+.alca{width:16px;text-align:center;color:var(--txt-dim);cursor:grab;user-select:none;flex:0 0 auto;font-size:13px}
+.sec-linha.fixa .alca{cursor:default;opacity:.7}
+.sec-nome{flex:1;min-width:0;text-align:left;background:none;border:0;color:var(--txt);font-weight:600;font-size:14.5px;
+  padding:6px 4px;border-radius:6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sec-nome:hover{color:var(--acc-3)}
+.sec-nome small{color:var(--txt-dim);font-weight:500;margin-left:6px;font-size:12px}
+.sec-linha .btn.mini{padding:4px 8px;min-width:30px}
+
+/* chave liga/desliga (checkbox de verdade por baixo) */
+.chave{position:relative;display:inline-block;width:34px;height:20px;flex:0 0 auto}
+.chave input{position:absolute;inset:0;width:100%;height:100%;opacity:0;margin:0;cursor:pointer;z-index:1}
+.chave span{position:absolute;inset:0;border-radius:99px;background:#2a3350;transition:.15s;pointer-events:none}
+.chave span::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;
+  background:#c9d1e4;transition:.15s}
+.chave input:checked+span{background:var(--acc)}
+.chave input:checked+span::after{transform:translateX(14px);background:#fff}
+.chave input:focus-visible+span{outline:2px solid var(--acc);outline-offset:2px}
+
+/* formulário da seção escolhida */
+.form-cab{display:flex;align-items:center;gap:10px;justify-content:space-between;
+  margin:18px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+.form-cab h2{margin:0;font-family:var(--f-display);font-size:17px}
+.aviso-off{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between;
+  margin:0 0 12px;padding:10px 12px;border-radius:10px;font-size:13.5px;color:var(--warn);
+  background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.25)}
+.form small.dica{display:block;margin-top:5px}
+.marcar{display:flex;gap:9px;align-items:center;font-size:14px;cursor:pointer;color:var(--txt)}
+.marcar input{width:17px;height:17px;accent-color:var(--acc);margin:0;flex:0 0 auto}
+.itens-tit{margin:22px 0 10px}
+.item{border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;display:grid;gap:10px;
+  background:var(--bg-2);margin-bottom:10px}
+.item-cab{display:flex;align-items:center;gap:5px}
+.item-cab b{flex:1;font-size:12px;color:var(--txt-dim);letter-spacing:.8px;text-transform:uppercase}
+
+/* ---------- tema ---------- */
+.modelos{display:grid;gap:8px}
+.modelo{display:flex;gap:11px;align-items:center;width:100%;text-align:left;padding:9px 10px;cursor:pointer;
+  border:1px solid var(--line-2);border-radius:10px;background:var(--bg-2);color:var(--txt);transition:border-color .15s}
+.modelo:hover{border-color:var(--acc)}
+.modelo b{display:block;font-size:14.5px}
+.modelo small{display:block;color:var(--txt-dim);font-size:12.5px}
+.modelo .badge{margin-left:auto}
+.emo{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:21px;flex:0 0 auto}
+#painelTema .titulo-secao{margin-top:20px}
+#painelTema .titulo-secao:first-child{margin-top:0}
+.cor-linha{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cor-input{width:44px;height:38px;padding:3px;border-radius:9px;border:1px solid var(--line-2);background:var(--bg-2);cursor:pointer}
+.cor-linha .campo{width:96px}
+.amostras{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.amostra-cor{width:26px;height:26px;border-radius:7px;border:2px solid transparent;cursor:pointer;padding:0;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.amostra-cor[aria-pressed="true"]{border-color:#fff}
+.contraste{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--txt-dim);padding:10px 12px;
+  border:1px dashed var(--line-2);border-radius:10px}
+.contraste b{color:var(--txt)}
+.amostra-btn{padding:6px 12px;border-radius:99px;font-weight:700;font-size:13px;white-space:nowrap}
+.conta-txt{font-weight:500;letter-spacing:0}
+
+/* controle segmentado (fundo, cantos, dispositivo, editar/visualizar) */
+.seg{display:inline-flex;background:var(--bg-2);border:1px solid var(--line-2);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:0;background:none;color:var(--txt-dim);padding:6px 11px;border-radius:7px;font-weight:600;
+  font-size:13.5px;cursor:pointer;white-space:nowrap}
+.seg button:hover{color:var(--txt)}
+.seg button[aria-pressed="true"]{background:var(--panel-3);color:var(--txt);box-shadow:inset 0 0 0 1px var(--line-2)}
+
+/* ---------- projetos ---------- */
+.proj-busca{display:flex;gap:8px;margin-bottom:14px}
+.proj-busca .campo{flex:1;min-width:0}
+.cliente{margin-bottom:16px}
+.cliente-cab{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.cliente-cab h3{margin:0;font-family:var(--f-display);font-size:15px;flex:1;min-width:0}
+.cliente-cab h3 small{color:var(--txt-dim);font-weight:600;font-size:12px;margin-left:6px}
+.proj{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;padding:10px;border:1px solid var(--line);
+  border-radius:10px;background:var(--bg-2);margin-bottom:6px}
+.proj.atual{border-color:rgba(0,179,255,.55);background:rgba(0,179,255,.06)}
+.proj-info{flex:1 1 170px;min-width:0}
+.proj-info b{display:flex;align-items:center;gap:7px;font-size:14.5px}
+.proj-info small{display:block;color:var(--txt-dim);font-size:12.5px;margin-top:2px}
+.ponto-cor{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.proj-acoes{display:flex;gap:5px;flex-wrap:wrap}
+
+/* ---------- prévia ---------- */
+.previa-barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--line)}
+.tam{color:var(--txt-dim);font-size:12px}
+.previa-nome{flex:1;min-width:0;text-align:right;font-size:13px;color:var(--txt-dim);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.palco{flex:1;min-height:0;position:relative;overflow:hidden;padding:14px;display:flex;justify-content:center;
+  background:radial-gradient(circle at 1px 1px,#1a2236 1px,transparent 0) 0 0/18px 18px,#070a12}
+.moldura{position:relative;overflow:hidden;border-radius:8px;background:#fff;flex:0 0 auto;
+  box-shadow:0 12px 40px rgba(0,0,0,.55)}
+.moldura iframe{border:0;display:block;transform-origin:0 0;background:transparent}
+.moldura.tablet{border-radius:14px;box-shadow:0 0 0 6px #161d2e,0 0 0 7px #2c3757,0 18px 50px rgba(0,0,0,.6)}
+.moldura.celular{border-radius:22px;box-shadow:0 0 0 7px #161d2e,0 0 0 8px #2c3757,0 18px 50px rgba(0,0,0,.6)}
+.palco:has(.moldura.tablet),.palco:has(.moldura.celular){padding:18px}
+
+/* ---------- modal ---------- */
+.modelos-radio{border:0;padding:0;margin:0;min-width:0}
+.modelos-op{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.modelo-op{position:relative;display:flex;gap:10px;align-items:center;padding:9px 10px;cursor:pointer;
+  border:1px solid var(--line-2);border-radius:10px;background:var(--bg-2)}
+.modelo-op input{position:absolute;opacity:0;pointer-events:none}
+.modelo-op b{display:block;font-size:14px}
+.modelo-op small{display:block;color:var(--txt-dim);font-size:12px}
+.modelo-op:has(input:checked){border-color:var(--acc);background:rgba(0,179,255,.08)}
+.modelo-op:has(input:focus-visible){outline:2px solid var(--acc);outline-offset:2px}
+.erro{margin:0;color:var(--err);font-size:13.5px}
+
+/* ---------- alternância editar/visualizar: só aparece no celular ---------- */
+.vista-alterna{display:none}
+
+@media (max-width:1100px){
+  .estudio{grid-template-columns:minmax(300px,340px) minmax(0,1fr)}
+  .previa-nome{display:none}
+}
+@media (max-width:900px){
+  .estudio{grid-template-columns:minmax(0,1fr);height:auto;min-height:0}
+  .estudio[data-vista="editar"] .previa{display:none}
+  .estudio[data-vista="visualizar"] .editor{display:none}
+  .editor{overflow:visible}
+  .editor-corpo{overflow:visible}
+  .previa{height:var(--alto,75vh);min-height:420px}
+  .previa-barra{gap:8px}
+  .nt-main{padding-bottom:86px}
+  .vista-alterna{display:flex;position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:40;
+    box-shadow:0 10px 30px rgba(0,0,0,.6);background:#0d1220;padding:4px}
+  .vista-alterna button{padding:10px 18px;font-size:15px}
+}
+@media (max-width:560px){
+  .longo{display:none}
+  .previa-barra .seg button{padding:6px 8px}
+  #bAba{margin-left:auto}
+  .tam{display:none}
+}

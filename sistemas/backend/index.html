@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Console da API · Nassa Tech</title>
+<link rel="icon" href="../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="nt-top"><div class="nt-emoji">🧩</div><div><h1>Console da API</h1><div class="nt-quem">Marina · Back-end · Node &amp; APIs</div></div><div class="nt-acoes">
+  <button type="button" class="btn mini ghost" id="btnToken">Copiar token</button>
+  <button type="button" class="btn mini ghost" id="btnExportar">Exportar banco</button>
+  <button type="button" class="btn mini danger" id="btnRestaurar">Restaurar banco</button>
+  <img class="nt-marca" src="../../assets/nassatech-logo-transparente.png" alt="Nassa Tech"></div></header>
+
+<main class="nt-main">
+  <section class="kpis" id="kpis" aria-label="Números de hoje"></section>
+
+  <div class="layout">
+    <!-- documentação: cada endpoint preenche o console -->
+    <aside class="card docs" id="docs" aria-labelledby="tDocs">
+      <div class="docs-topo">
+        <h2 id="tDocs">Documentação</h2>
+        <div class="auth">
+          <span class="rot-mini">Base URL</span>
+          <code>https://api.nassatech.com.br<wbr>/api/v1</code>
+          <span class="rot-mini">Token de demonstração</span>
+          <div class="token-linha">
+            <code id="tokenTxt"></code>
+            <button type="button" class="btn mini" id="btnCopiarToken">Copiar</button>
+            <button type="button" class="btn mini ghost" id="btnNovoToken">Gerar novo</button>
+          </div>
+          <p class="pequeno dim">Mande em <span class="mono">Authorization: Bearer &lt;token&gt;</span>. Sem ele a API responde 401.</p>
+        </div>
+        <div>
+          <label class="rot" for="filtroDocs">Filtrar endpoints</label>
+          <input class="campo" id="filtroDocs" type="search" placeholder="ex.: pagamentos, POST, 422" autocomplete="off">
+        </div>
+      </div>
+      <div class="docs-lista" id="docsLista"></div>
+    </aside>
+
+    <div class="centro">
+      <!-- requisição -->
+      <section class="card console" id="console" aria-labelledby="tConsole">
+        <div class="card-topo">
+          <h2 id="tConsole">Requisição</h2>
+          <span class="dica pequeno dim">Ctrl + Enter envia</span>
+        </div>
+        <form class="barra-url" id="formReq">
+          <label class="sr" for="metodo">Método</label>
+          <select class="campo metodo" id="metodo">
+            <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option>
+          </select>
+          <label class="sr" for="caminho">Caminho</label>
+          <input class="campo" id="caminho" list="rotas" autocomplete="off" spellcheck="false" placeholder="/api/v1/clientes">
+          <button type="submit" class="btn primary" id="btnEnviar">Enviar</button>
+        </form>
+        <datalist id="rotas"></datalist>
+
+        <div class="abas" role="tablist" aria-label="Partes da requisição">
+          <button type="button" class="aba on" data-aba="cab" role="tab" aria-selected="true">Cabeçalhos</button>
+          <button type="button" class="aba" data-aba="corpo" role="tab" aria-selected="false">Corpo JSON</button>
+          <button type="button" class="aba" data-aba="curl" role="tab" aria-selected="false">cURL</button>
+        </div>
+        <div class="painel-aba on" data-aba="cab" role="tabpanel">
+          <label class="rot" for="cabecalhos">Um por linha, no formato Nome: valor</label>
+          <textarea class="campo codigo" id="cabecalhos" rows="4" spellcheck="false" wrap="off"></textarea>
+          <div class="linha acoes-ed">
+            <button type="button" class="btn mini" id="btnPorToken">Pôr token</button>
+            <button type="button" class="btn mini ghost" id="btnTirarToken">Tirar token</button>
+          </div>
+        </div>
+        <div class="painel-aba" data-aba="corpo" role="tabpanel">
+          <label class="rot" for="corpo">Enviado em POST, PUT e PATCH</label>
+          <textarea class="campo codigo" id="corpo" rows="10" spellcheck="false" placeholder='{ "nome": "Barbearia Navalha de Ouro" }'></textarea>
+          <div class="linha acoes-ed">
+            <span id="estadoJson" class="pequeno" aria-live="polite"></span>
+            <span class="espaco"></span>
+            <button type="button" class="btn mini" id="btnFormatar">Formatar</button>
+            <button type="button" class="btn mini ghost" id="btnLimparCorpo">Limpar</button>
+          </div>
+        </div>
+        <div class="painel-aba" data-aba="curl" role="tabpanel">
+          <pre class="json curl" id="curl" tabindex="0" aria-label="Comando cURL da requisição"></pre>
+          <div class="linha acoes-ed">
+            <button type="button" class="btn mini" id="btnCopiarCurl">Copiar cURL</button>
+            <span class="pequeno dim">Aponta para o endereço de produção da API.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- resposta -->
+      <section class="card resposta" id="resposta" aria-labelledby="tResp">
+        <div class="card-topo">
+          <h2 id="tResp">Resposta</h2>
+          <div class="res-meta" id="resMeta" aria-live="polite"></div>
+          <button type="button" class="btn mini ghost" id="btnCopiarRes">Copiar</button>
+        </div>
+        <div class="res-eco" id="resEco"></div>
+        <div class="nota" id="resNota" hidden></div>
+        <div class="abas" role="tablist" aria-label="Partes da resposta">
+          <button type="button" class="aba on" data-aba="rcorpo" role="tab" aria-selected="true">Corpo</button>
+          <button type="button" class="aba" data-aba="rcab" role="tab" aria-selected="false">Cabeçalhos</button>
+        </div>
+        <div class="painel-aba on" data-aba="rcorpo" role="tabpanel">
+          <div class="vazio" id="resVazio">Escolha um endpoint na documentação ou monte a requisição e clique em <b>Enviar</b>. A resposta aparece aqui com o código, o tempo e os cabeçalhos.</div>
+          <pre class="json" id="resCorpo" tabindex="0" aria-label="Corpo da resposta" hidden></pre>
+        </div>
+        <div class="painel-aba" data-aba="rcab" role="tabpanel">
+          <div class="rolagem"><table class="tabela cab-tabela"><tbody id="resCab"></tbody></table></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- webhooks, histórico e banco -->
+    <section class="card lado" id="lado" aria-label="Webhooks, histórico e banco">
+      <div class="abas" role="tablist" aria-label="Painel lateral">
+        <button type="button" class="aba on" data-aba="wh" role="tab" aria-selected="true">Webhooks<span class="contador" id="novosWh" hidden></span></button>
+        <button type="button" class="aba" data-aba="hist" role="tab" aria-selected="false">Histórico</button>
+        <button type="button" class="aba" data-aba="banco" role="tab" aria-selected="false">Banco</button>
+      </div>
+      <div class="painel-aba on" data-aba="wh" role="tabpanel">
+        <div class="lista-topo">
+          <span class="pequeno dim">Entregues em nassatech.com.br/webhooks</span>
+          <button type="button" class="btn mini ghost" id="btnLimparWh">Limpar</button>
+        </div>
+        <ol class="lista" id="listaWh"></ol>
+      </div>
+      <div class="painel-aba" data-aba="hist" role="tabpanel">
+        <div class="lista-topo">
+          <span class="pequeno dim">Clique numa requisição para repetir</span>
+          <button type="button" class="btn mini ghost" id="btnLimparHist">Limpar</button>
+        </div>
+        <ol class="lista" id="listaHist"></ol>
+      </div>
+      <div class="painel-aba" data-aba="banco" role="tabpanel">
+        <div class="lista">
+          <p class="pequeno dim sem-margem">O banco fica salvo neste navegador. <b>Listar</b> manda um GET da tabela pelo console.</p>
+          <div class="rolagem"><table class="tabela tab-banco">
+            <thead><tr><th>Tabela</th><th>Registros</th><th>Próximo id</th><th><span class="sr">Ação</span></th></tr></thead>
+            <tbody id="tabBanco"></tbody>
+          </table></div>
+          <div class="resumo" id="resumoBanco"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="modal-fundo" id="modalRestaurar" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tRest">
+    <h3 id="tRest">Restaurar o banco de exemplo?</h3>
+    <p class="dim">Clientes, projetos, pagamentos e mensagens voltam para os dados de exemplo. O que foi criado, alterado ou apagado pela API se perde, e os webhooks que ainda estão na fila são cancelados.</p>
+    <label class="check"><input type="checkbox" id="chkTudo"> Voltar também o histórico, os webhooks e as métricas de hoje</label>
+    <div class="rodape">
+      <button type="button" class="btn ghost" id="btnCancelarRest">Cancelar</button>
+      <button type="button" class="btn danger" id="btnConfirmarRest">Restaurar banco</button>
+    </div>
+  </div>
+</div>
+
+<script src="../base.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
