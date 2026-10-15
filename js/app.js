@@ -1488,7 +1488,6 @@ new MutationObserver(() => {
    =========================================================== */
 const entrada = $('#entrada');
 function abrirEntrada() {
-  $('#ent-cena').innerHTML = NASSA.predioSVG();
   entrada.classList.remove('hidden', 'saindo');
 }
 function subirAoAndar() {

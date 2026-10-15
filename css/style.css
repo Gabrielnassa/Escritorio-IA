@@ -439,9 +439,14 @@ button{font-family:inherit;color:inherit}
 #entrada.saindo{opacity:0;transform:scale(1.06);pointer-events:none}
 #entrada.hidden{display:none}
 #entrada .ent-cena{position:relative;flex:1;min-height:0;overflow:hidden}
-#entrada .ent-cena svg{position:absolute;inset:0;width:100%;height:100%;display:block}
-#entrada .andar-nassa{animation:andar 2.4s ease-in-out infinite}
-@keyframes andar{50%{opacity:.45}}
+/* a foto da torre inteira à direita; a mesma foto, desfocada, preenche as laterais */
+#entrada .ent-fundo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:blur(22px) brightness(.35) saturate(1.2);transform:scale(1.15)}
+#entrada .ent-foto{position:absolute;top:0;bottom:0;left:66%;transform:translateX(-50%);
+  height:100%;aspect-ratio:1005/1565;max-width:100%;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);
+          mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+#entrada .ent-foto img{width:100%;height:100%;object-fit:cover;display:block}
 #entrada .ent-card{position:absolute;left:clamp(16px,5vw,64px);top:clamp(16px,6vh,64px);
   max-width:440px;padding:22px 24px;border-radius:18px;
   background:rgba(5,7,13,.78);border:1px solid rgba(0,179,255,.28);backdrop-filter:blur(8px);
@@ -481,6 +486,8 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
   .topactions .btn{padding:7px 10px;font-size:12px}
   #btn-quadro, #btn-avisos, #btn-report, #btn-speak{display:none}
   #entrada .ent-card{top:auto;bottom:16px}
+  #entrada .ent-foto{left:0;transform:none;width:100%;aspect-ratio:auto;-webkit-mask-image:none;mask-image:none}
+  #entrada .ent-foto img{object-position:62% 30%}
   #entrada .ent-card p:not(#ent-end){display:none}
   #hud-left{display:none}
 }
