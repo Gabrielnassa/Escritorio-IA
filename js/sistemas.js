@@ -5,6 +5,9 @@
    Clicando no computador dele, abre o monitor: liga o servidor local
    se preciso e mostra o painel do sistema dentro da tela, para você
    configurar ou conversar com ele sem sair do escritório.
+
+   Os funcionários do banco de talentos já vêm com um sistema embutido
+   (sistemas/catalogo.json), que abre mesmo sem o servidor.
    =========================================================== */
 const SISTEMAS = (() => {
 
@@ -16,17 +19,38 @@ const SISTEMAS = (() => {
   const onChange = fn => aoMudar.push(fn);
   const avisar = () => aoMudar.forEach(f => { try { f(); } catch (e) { /* ignora */ } });
 
+  /* Sem o servidor (GitHub Pages, ou o index.html aberto direto) não há
+     API: valem só os sistemas embutidos, que são páginas em sistemas/<id>/
+     e rodam no próprio navegador.                                      */
+  let embutidos = null;
+  async function lerEmbutidos() {
+    if (embutidos) return embutidos;
+    try {
+      const d = await (await fetch('sistemas/catalogo.json', { cache: 'no-store' })).json();
+      embutidos = Object.entries(d).filter(([id]) => !id.startsWith('_')).map(([id, x]) => ({
+        id, nome: x.nome, tipo: 'embutido', estado: 'no ar', url: 'sistemas/' + id + '/',
+        sobre: x.sobre || '', dicas: x.dicas || [], emoji: x.emoji || null, agente: x.agente || null,
+        pasta: x.pasta || null, embutir: true
+      }));
+    } catch (e) { embutidos = []; }
+    return embutidos;
+  }
+
+  let servidor = false;    // true quando a API do escritório respondeu
   async function atualizar() {
     try {
       const r = await fetch('/api/sistemas');
       if (!r.ok) throw new Error('HTTP ' + r.status);
       lista = await r.json();
+      servidor = true;
     } catch (e) {
-      lista = [];          // servidor estático puro: sem API
+      lista = await lerEmbutidos();
+      servidor = false;
     }
     avisar();
     return lista;
   }
+  const comServidor = () => servidor;
 
   const ligar    = id => fetch(`/api/sistemas/${id}/ligar`,    { method: 'POST' }).then(r => r.json());
   const desligar = id => fetch(`/api/sistemas/${id}/desligar`, { method: 'POST' }).then(r => r.json());
@@ -54,5 +78,5 @@ const SISTEMAS = (() => {
     'web':     'var(--alt-1)'
   };
 
-  return { atualizar, todos, porId, ligar, desligar, log, esperarSubir, onChange, COR };
+  return { atualizar, todos, porId, ligar, desligar, log, esperarSubir, onChange, COR, comServidor };
 })();

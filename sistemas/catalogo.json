@@ -1,0 +1,89 @@
+{
+  "_leia": [
+    "Sistemas que vêm junto com o escritório: um para cada funcionário do banco de talentos.",
+    "Cada um é uma página em sistemas/<id>/ que funciona sozinha no navegador (os dados ficam no localStorage), então abre igual no servidor local e no GitHub Pages.",
+    "O agente aponta para o sistema pelo campo 'sistema' em js/roster.js. Uma entrada com o mesmo id em data/sistemas.json tem prioridade sobre esta.",
+    "tipo 'embutido': não tem servidor para ligar; está sempre no ar. A pasta serve para o Conversar e para a reunião dos agentes."
+  ],
+  "frontend": {
+    "nome": "Estúdio de Landing Pages",
+    "agente": "frontend",
+    "emoji": "🎨",
+    "tipo": "embutido",
+    "pasta": "sistemas/frontend",
+    "sobre": "Monta landing pages por seções, edita textos e cores e mostra o resultado em desktop, tablet e celular. Exporta o HTML pronto.",
+    "dicas": ["Escolha as seções na lateral e edite o texto direto nelas", "Troque o tamanho da tela no topo para ver o responsivo", "Exportar HTML baixa a página pronta para publicar"]
+  },
+  "backend": {
+    "nome": "Console da API",
+    "agente": "backend",
+    "emoji": "🧩",
+    "tipo": "embutido",
+    "pasta": "sistemas/backend",
+    "sobre": "Uma API REST simulada da Nassa Tech (clientes, projetos e pagamentos) com console para mandar requisições e ver as respostas, a documentação dos endpoints e o log dos webhooks.",
+    "dicas": ["Escolha um endpoint na lista para preencher o console", "Os dados ficam salvos no navegador", "Os webhooks de pagamento e WhatsApp aparecem no log da direita"]
+  },
+  "fullstack": {
+    "nome": "Gestor de Projetos",
+    "agente": "fullstack",
+    "emoji": "⚙️",
+    "tipo": "embutido",
+    "pasta": "sistemas/fullstack",
+    "sobre": "Quadro kanban dos projetos dos clientes, do backlog à entrega, com prazo, valor e responsável, e o resumo do que está em andamento.",
+    "dicas": ["Arraste os cartões entre as colunas", "Clique num cartão para editar", "O topo mostra o valor em andamento e o que está atrasado"]
+  },
+  "mobile": {
+    "nome": "Laboratório Mobile",
+    "agente": "mobile",
+    "emoji": "📱",
+    "tipo": "embutido",
+    "pasta": "sistemas/mobile",
+    "sobre": "Um app de demonstração rodando num celular na tela, com as builds de Android e iOS e o checklist para publicar nas lojas.",
+    "dicas": ["Toque nas telas do app para navegar", "Gere uma build nova para ver o processo", "Marque o checklist antes de mandar para as lojas"]
+  },
+  "devops": {
+    "nome": "Central de Deploy",
+    "agente": "devops",
+    "emoji": "🚀",
+    "tipo": "embutido",
+    "pasta": "sistemas/devops",
+    "sobre": "Confere se cada sistema do escritório está respondendo, roda o pipeline de deploy (build, testes, publicação) e acompanha domínios e certificados.",
+    "dicas": ["Verificar agora testa todos os sistemas de uma vez", "Rodar deploy mostra cada etapa no log", "Cadastre os domínios dos clientes para ver quando o SSL vence"]
+  },
+  "qa": {
+    "nome": "Central de Qualidade",
+    "agente": "qa",
+    "emoji": "🧪",
+    "tipo": "embutido",
+    "pasta": "sistemas/qa",
+    "sobre": "Roda testes de fumaça em todos os sistemas do escritório e controla os bugs encontrados, com severidade e situação.",
+    "dicas": ["Rodar testes confere cada sistema de verdade", "Registre um bug com passos para reproduzir", "Filtre os bugs por severidade"]
+  },
+  "design": {
+    "nome": "Design System Nassa",
+    "agente": "design",
+    "emoji": "✏️",
+    "tipo": "embutido",
+    "pasta": "sistemas/design",
+    "sobre": "As cores, a tipografia e os componentes da marca Nassa Tech, com verificador de contraste para acessibilidade.",
+    "dicas": ["Clique numa cor para copiar o código", "Teste qualquer par de cores no verificador de contraste", "Os componentes mostram os estados de cada um"]
+  },
+  "ia": {
+    "nome": "Central de Agentes",
+    "agente": "ia",
+    "emoji": "🧠",
+    "tipo": "embutido",
+    "pasta": "sistemas/ia",
+    "sobre": "As automações da empresa (gatilho e ação), com liga e desliga e histórico, e um atendente virtual para testar respostas.",
+    "dicas": ["Ligue e desligue cada automação", "Converse com o atendente virtual na aba Atendente", "Ensine respostas novas em Base de conhecimento"]
+  },
+  "comercial": {
+    "nome": "CRM & Propostas",
+    "agente": "comercial",
+    "emoji": "🤝",
+    "tipo": "embutido",
+    "pasta": "sistemas/comercial",
+    "sobre": "O funil de leads que chegam pelo site e o gerador de propostas com orçamento por tipo de projeto.",
+    "dicas": ["Mova os leads pelas etapas do funil", "Monte a proposta escolhendo o tipo de projeto e o escopo", "Copie ou imprima a proposta pronta"]
+  }
+}

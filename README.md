@@ -91,8 +91,33 @@ full-stack, mobile, DevOps, QA, UI/UX e agentes de IA, além do agente de
 exemplo. Na aba **Contratar** dá para trazer mais gente (há também uma vaga
 de comercial) ou cadastrar um agente seu.
 
-Cada funcionário pode ter um sistema de verdade por trás. Clique no
-computador dele para abrir esse sistema ali mesmo:
+### O sistema de cada funcionário
+
+Cada vaga do banco de talentos já vem com um sistema próprio, que abre quando
+você clica no computador da pessoa (ou em **🖥️ Abrir o sistema** na ficha):
+
+| Quem | Sistema | O que faz |
+| --- | --- | --- |
+| 🎨 Lucas · Front-end | Estúdio de Landing Pages | monta páginas por seções, mostra em desktop/tablet/celular e exporta o HTML |
+| 🧩 Marina · Back-end | Console da API | API REST simulada (clientes, projetos, pagamentos, WhatsApp) com console, documentação e webhooks |
+| ⚙️ Rafa · Full-stack | Gestor de Projetos | kanban dos projetos dos clientes, com prazos, valores e linha do tempo |
+| 📱 Bia · Mobile | Laboratório Mobile | app de demonstração num celular, builds Android/iOS e checklist das lojas |
+| 🚀 Dani · DevOps | Central de Deploy | confere se cada sistema responde, roda o pipeline de deploy e vigia domínios e SSL |
+| 🧪 Theo · QA | Central de Qualidade | roda testes de verdade em todos os sistemas e controla os bugs |
+| ✏️ Lia · UI/UX | Design System Nassa | cores, contraste, tipografia e componentes da marca |
+| 🧠 Nico · IA & Automação | Central de Agentes | automações (gatilho e ação) e um atendente virtual com base de conhecimento |
+| 🤝 Duda · Comercial | CRM & Propostas | funil de leads e gerador de propostas com orçamento |
+
+Eles ficam em `sistemas/<id>/` e rodam no próprio navegador (os dados ficam no
+`localStorage`), então abrem igual no servidor local e no GitHub Pages. O
+registro está em `sistemas/catalogo.json`; uma entrada com o mesmo id em
+`data/sistemas.json` vale por cima da embutida, se você quiser trocar o
+sistema de alguém pelo seu projeto de verdade.
+
+### Ligar um sistema seu
+
+Também dá para ligar um projeto seu a um agente. Clique no computador dele
+para abrir esse sistema ali mesmo:
 
 | Sistema do agente | O que preencher |
 | --- | --- |
@@ -188,6 +213,7 @@ js/furniture.js    móveis e estações de trabalho
 js/                o resto do motor: bonecos, caminhos, painéis
 css/style.css      tema
 assets/            a logo da Nassa Tech em PNG e a foto da BMW
+sistemas/          o sistema de cada funcionário (um por pasta) e o catálogo
 exemplo-agente/    o menor sistema que o escritório sabe operar
 data/              seus dados (fora do git, menos os exemplos)
 ```

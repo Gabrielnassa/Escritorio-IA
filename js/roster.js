@@ -32,7 +32,9 @@ const ROSTER = (() => {
   /* ===========================================================
      BANCO DE TALENTOS — o time de uma software house
      'detectado' = tem sistema no registro (data/sistemas.json)
-     'sugerido'  = vaga de ideia; contrate e depois ligue um sistema a ela
+     'sugerido'  = vaga sugerida pelo gerente. Cada uma já vem com um
+                   sistema embutido (sistemas/catalogo.json, pasta
+                   sistemas/<key>/), que abre no computador dela
      =========================================================== */
   const CATALOG = [
     {
@@ -43,55 +45,55 @@ const ROSTER = (() => {
       look: { skin: '#c9854f', hair: '#140f0c', style: 'cacheado', shirt: '#00b3ff', pants: '#26304a', glasses: null, beard: null }
     },
     {
-      key: 'frontend', name: 'Lucas', role: 'Front-end · React & Next.js', emoji: '🎨', cat: 'sugerido',
+      key: 'frontend', name: 'Lucas', role: 'Front-end · React & Next.js', emoji: '🎨', cat: 'sugerido', system: 'Estúdio de Landing Pages', sistema: 'frontend',
       desc: 'Constrói as telas: sites, landing pages e painéis, do Figma ao deploy.',
       why: 'É a parte que o cliente vê. Interface rápida e bonita vende o projeto.',
       look: { skin: '#f0c29b', hair: '#241a13', style: 'fade', shirt: '#2f7bff', pants: '#1b2030', glasses: null, beard: null }
     },
     {
-      key: 'backend', name: 'Marina', role: 'Back-end · Node & APIs', emoji: '🧩', cat: 'sugerido',
+      key: 'backend', name: 'Marina', role: 'Back-end · Node & APIs', emoji: '🧩', cat: 'sugerido', system: 'Console da API', sistema: 'backend',
       desc: 'APIs, banco de dados, integrações de pagamento e WhatsApp.',
       why: 'Todo sistema precisa de um motor confiável por trás da tela.',
       look: { skin: '#7a4a2c', hair: '#140f0c', style: 'coque', shirt: '#14b8a6', pants: '#1b2030', glasses: 'redondo', beard: null }
     },
     {
-      key: 'fullstack', name: 'Rafa', role: 'Full-stack', emoji: '⚙️', cat: 'sugerido',
+      key: 'fullstack', name: 'Rafa', role: 'Full-stack', emoji: '⚙️', cat: 'sugerido', system: 'Gestor de Projetos', sistema: 'fullstack',
       desc: 'Pega a funcionalidade de ponta a ponta: banco, API e tela.',
       why: 'Quem enxerga o fluxo inteiro entrega mais rápido e com menos retrabalho.',
       look: { skin: '#c9854f', hair: '#1a120d', style: 'curto', shirt: '#334155', pants: '#26304a', glasses: 'retangular', beard: 'cheia' }
     },
     {
-      key: 'mobile', name: 'Bia', role: 'Mobile · React Native', emoji: '📱', cat: 'sugerido',
+      key: 'mobile', name: 'Bia', role: 'Mobile · React Native', emoji: '📱', cat: 'sugerido', system: 'Laboratório Mobile', sistema: 'mobile',
       desc: 'Apps para Android e iOS a partir da mesma base de código.',
       why: 'Muito cliente quer o app na loja. Uma base só reduz custo e prazo.',
       look: { skin: '#e0a878', hair: '#5a3a22', style: 'longo', shirt: '#f472b6', pants: '#26304a', glasses: null, beard: null }
     },
     {
-      key: 'devops', name: 'Dani', role: 'DevOps & Cloud', emoji: '🚀', cat: 'sugerido',
+      key: 'devops', name: 'Dani', role: 'DevOps & Cloud', emoji: '🚀', cat: 'sugerido', system: 'Central de Deploy', sistema: 'devops',
       desc: 'Deploy, CI/CD, servidores, domínios e monitoramento.',
       why: 'Código que não chega em produção não gera valor. É quem mantém tudo no ar.',
       look: { skin: '#f7d7bd', hair: '#8e8e93', style: 'curto', shirt: '#0ea5e9', pants: '#1b2030', glasses: 'redondo', beard: null }
     },
     {
-      key: 'qa', name: 'Theo', role: 'QA & Testes', emoji: '🧪', cat: 'sugerido',
+      key: 'qa', name: 'Theo', role: 'QA & Testes', emoji: '🧪', cat: 'sugerido', system: 'Central de Qualidade', sistema: 'qa',
       desc: 'Roda build, typecheck e teste antes de qualquer deploy.',
       why: 'Com várias pessoas e agentes mexendo em código, alguém precisa ser o freio antes de subir.',
       look: { skin: '#f0c29b', hair: '#241a13', style: 'ondulado', shirt: '#22c55e', pants: '#26304a', glasses: null, beard: 'cavanhaque' }
     },
     {
-      key: 'design', name: 'Lia', role: 'UI/UX Design', emoji: '✏️', cat: 'sugerido',
+      key: 'design', name: 'Lia', role: 'UI/UX Design', emoji: '✏️', cat: 'sugerido', system: 'Design System Nassa', sistema: 'design',
       desc: 'Pesquisa, protótipo e design system de cada projeto.',
       why: 'Um bom fluxo evita código jogado fora. Desenha antes de programar.',
       look: { skin: '#f7d7bd', hair: '#8b5a2b', style: 'rabo', shirt: '#a855f7', pants: '#1b2030', glasses: 'retangular', beard: null }
     },
     {
-      key: 'ia', name: 'Nico', role: 'Agentes de IA & Automação', emoji: '🧠', cat: 'sugerido',
+      key: 'ia', name: 'Nico', role: 'Agentes de IA & Automação', emoji: '🧠', cat: 'sugerido', system: 'Central de Agentes', sistema: 'ia',
       desc: 'Cria agentes com o Claude, automações e integrações com IA.',
       why: 'É o produto que mais cresce: atendimento, vendas e operação rodando sozinhos.',
       look: { skin: '#c9854f', hair: '#140f0c', style: 'cacheado', shirt: '#00b3ff', pants: '#1b2030', glasses: null, beard: null }
     },
     {
-      key: 'comercial', name: 'Duda', role: 'Comercial & Propostas', emoji: '🤝', cat: 'sugerido',
+      key: 'comercial', name: 'Duda', role: 'Comercial & Propostas', emoji: '🤝', cat: 'sugerido', system: 'CRM & Propostas', sistema: 'comercial',
       desc: 'Atende quem chega pelo site, entende o projeto e monta a proposta.',
       why: 'Sem entrada de projeto novo, o time de desenvolvimento fica parado.',
       look: { skin: '#e0a878', hair: '#241a13', style: 'longo', shirt: '#f59e0b', pants: '#26304a', glasses: null, beard: null }

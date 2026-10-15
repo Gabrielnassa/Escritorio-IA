@@ -61,10 +61,18 @@ const TYPES = {
   '.webp': 'image/webp'
 };
 
-/* ---------------- registro ---------------- */
+/* ---------------- registro ----------------
+   Os sistemas embutidos (sistemas/catalogo.json) vêm junto com o
+   escritório: um para cada funcionário do banco de talentos. São páginas
+   que rodam no navegador, sempre no ar. Uma entrada com o mesmo id em
+   data/sistemas.json vale por cima da embutida.                        */
+const CATALOGO = path.join(ROOT, 'sistemas', 'catalogo.json');
+function lerEmbutidos() {
+  try { return JSON.parse(fs.readFileSync(CATALOGO, 'utf8')); } catch (e) { return {}; }
+}
 function lerRegistro() {
   try {
-    const bruto = JSON.parse(fs.readFileSync(REGISTRO, 'utf8'));
+    const bruto = Object.assign({}, lerEmbutidos(), JSON.parse(fs.readFileSync(REGISTRO, 'utf8')));
     const out = {};
     for (const [id, s] of Object.entries(bruto)) {
       if (id.startsWith('_')) continue;          // chaves de comentário
@@ -98,8 +106,9 @@ function novoSistema(b) {
   const nome = String(b.nome || '').trim().slice(0, 60);
   if (!nome) return { ok: false, motivo: 'dê um nome ao sistema' };
   const bruto = lerRegistroBruto();
+  const embutidos = lerEmbutidos();
   let id = slug(b.id || nome), n = 2;
-  while (bruto[id]) id = slug(b.id || nome) + '-' + n++;
+  while (bruto[id] || embutidos[id]) id = slug(b.id || nome) + '-' + n++;
 
   let item;
   if (b.tipo === 'web') {
@@ -322,7 +331,9 @@ async function ligar(id) {
 async function ligarDeFato(id) {
   const s = lerRegistro()[id];
   if (!s) return { ok: false, motivo: 'sistema não está no registro' };
-  if (s.tipo !== 'local') return { ok: false, motivo: 'esse é um sistema web, não sobe aqui' };
+  if (s.tipo !== 'local') return { ok: false, motivo: s.tipo === 'embutido'
+    ? 'esse sistema vem embutido no escritório e já está sempre no ar'
+    : 'esse é um sistema web, não sobe aqui' };
   if (vivos.has(id)) return { ok: true, jaEstava: true };
   // já está no ar (na porta dele ou na que o Next avisou): não sobe outro
   for (const porta of portasDe(id, s)) {
@@ -459,7 +470,13 @@ async function estado() {
       embutir: s.embutir === undefined ? true : s.embutir,
       pasta: s.pasta || null, porta: s.porta || null
     };
-    if (s.tipo === 'web') {
+    if (s.tipo === 'embutido') {
+      // página dentro do próprio escritório: não sobe nada, está sempre no ar
+      item.url = '/sistemas/' + id + '/';
+      item.estado = 'no ar';
+      item.emoji = s.emoji || null;
+      item.agente = s.agente || null;
+    } else if (s.tipo === 'web') {
       item.url = s.url;
       item.estado = 'web';
       // site que recusa iframe também passa pelo espelho
@@ -839,8 +856,10 @@ const servidor = http.createServer(async (req, res) => {
   if (rota.startsWith('/api/')) return json(res, 404, { ok: false, motivo: 'rota não existe' });
 
   /* ---- estáticos ---- */
-  const rel = rota === '/' ? '/index.html' : rota;
-  if (!/^\/(index\.html|favicon\.(svg|png)|css\/|js\/|assets\/)/.test(rel)) {
+  let rel = rota === '/' ? '/index.html' : rota;
+  if (/^\/sistemas\/[a-z0-9_-]+$/i.test(rel)) { res.writeHead(301, { Location: rel + '/' }).end(); return; }
+  if (rel.endsWith('/')) rel += 'index.html';      // sistemas/<id>/ abre o index.html dele
+  if (!/^\/(index\.html|favicon\.(svg|png)|css\/|js\/|assets\/|sistemas\/)/.test(rel)) {
     res.writeHead(404, { 'Content-Type': 'text/plain' }).end('404'); return;
   }
   const arquivo = path.join(ROOT, path.normalize(rel).replace(/^(\.\.[/\\])+/, ''));

@@ -637,7 +637,9 @@ let hireCat = 'todos';
 function renderHire() {
   const box = $('#hire-list');
   box.innerHTML = '';
-  const list = ROSTER.CATALOG.filter(c => hireCat === 'todos' || c.cat === hireCat);
+  // "com sistema" mostra todo mundo que já chega com um computador funcionando
+  const list = ROSTER.CATALOG.filter(c => hireCat === 'todos' ||
+    (hireCat === 'detectado' ? !!c.sistema : c.cat === hireCat));
 
   for (const c of list) {
     const hired = ROSTER.isHired(c.key);
@@ -647,10 +649,11 @@ function renderHire() {
       <div class="top">
         <div class="emo">${c.emoji}</div>
         <div class="nm">${esc(c.name)} <span style="color:var(--txt-dim);font-weight:600">· ${esc(c.role)}</span></div>
-        <span class="tag ${c.cat}">${c.cat === 'detectado' ? 'na máquina' : 'sugestão'}</span>
+        <span class="tag ${c.cat}">${c.cat === 'detectado' ? 'na máquina' : c.sistema ? 'com sistema' : 'sugestão'}</span>
       </div>
       <p class="desc">${esc(c.desc)}</p>
       <p class="why"><b>Por que vale:</b> ${esc(c.why)}</p>
+      ${c.system ? `<p class="desc" style="margin-top:-3px">🖥️ Sistema: <b style="color:var(--txt)">${esc(c.system)}</b></p>` : ''}
       ${c.path ? `<p class="desc" style="font-family:monospace;font-size:10.5px;opacity:.6">${esc(c.path)}</p>` : ''}
       <div class="acts">
         <button class="mini act">${hired ? '✓ já contratado' : '＋ contratar'}</button>
@@ -1199,6 +1202,7 @@ function fecharMonitor() {
   mon.el.classList.add('hidden');
   clearInterval(mon.timer);
   mon.frame.src = 'about:blank';
+  mon.frame.dataset.url = '';      // senão, reabrir o mesmo sistema deixava a tela em branco
 }
 
 function pintarMonitor(soEstado) {
@@ -1207,11 +1211,22 @@ function pintarMonitor(soEstado) {
 
   if (!s) {
     $('#mon-sis').textContent = mon.agente ? mon.agente.role : '';
-    luz.style.background = 'var(--off)'; txt.textContent = 'sem sistema';
+    luz.style.background = 'var(--off)';
     $('#mon-ligar').disabled = $('#mon-desligar').disabled = $('#mon-log').disabled = true;
     $('#mon-aba').disabled = $('#mon-chat').disabled = true;
     mon.frame.style.display = 'none';
+    mon.frame.dataset.url = '';
     mon.vazio.classList.add('on');
+    // tem sistema, mas ele roda na máquina do dono e aqui não há servidor
+    // (GitHub Pages): explica em vez de dizer que não existe
+    if (mon.id && !SISTEMAS.comServidor()) {
+      txt.textContent = 'roda na sua máquina';
+      mon.vazio.innerHTML = '<div><b>Esse sistema roda no seu computador</b>' +
+        'O sistema <code>' + esc(mon.id) + '</code> é um servidor local, e esta página está aberta sem o servidor do escritório.<br>' +
+        '<span class="dica">Abra pelo <b>INICIAR ESCRITORIO</b> (http://localhost:4321) para ligar e ver o painel aqui dentro.</span></div>';
+      return;
+    }
+    txt.textContent = 'sem sistema';
     mon.vazio.innerHTML = '<div><b>Esse agente ainda não tem sistema ligado a ele</b>' +
       'Cadastre em <code>data/sistemas.json</code> e aponte o agente para o id dele.<br>' +
       '<span class="dica">É assim que um agente novo ganha um computador que abre de verdade.</span></div>';
@@ -1222,6 +1237,7 @@ function pintarMonitor(soEstado) {
   luz.style.background = SISTEMAS.COR[s.estado] || 'var(--off)';
   luz.style.color = SISTEMAS.COR[s.estado] || 'var(--off)';
   txt.textContent = s.tipo === 'web' ? 'site publicado'
+                  : s.tipo === 'embutido' ? 'no ar · embutido'
                   : s.externo ? 'no ar · fora daqui' : s.estado;
 
   const local = s.tipo === 'local';
@@ -1234,8 +1250,11 @@ function pintarMonitor(soEstado) {
   $('#mon-log').disabled = !local;
   $('#mon-aba').disabled = false;
   // dá para conversar mesmo desligado, e mesmo com sistema publicado:
-  // o que o agente precisa é da pasta do projeto, não do servidor no ar
-  $('#mon-chat').disabled = !s.pasta;
+  // o que o agente precisa é da pasta do projeto, não do servidor no ar.
+  // Sem o servidor do escritório (GitHub Pages) não há Claude Code para abrir.
+  $('#mon-chat').disabled = !s.pasta || !SISTEMAS.comServidor();
+  $('#mon-chat').title = SISTEMAS.comServidor() ? 'Conversar com o agente'
+    : 'Conversar precisa do escritório rodando na sua máquina (INICIAR ESCRITORIO)';
 
   // sistema que recusa iframe entra pelo espelho (urlEmbutida); se nem o
   // espelho subiu, não adianta insistir — o quadro ficaria branco
