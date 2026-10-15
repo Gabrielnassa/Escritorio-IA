@@ -72,7 +72,7 @@ const WORLD = (() => {
     { x: 30, y: 18, o: 'h' }, { x: 31, y: 18, o: 'h' },   // serviço  -> corredor
     { x: 13, y: 22, o: 'h' }, { x: 14, y: 22, o: 'h' },   // lounge   -> corredor
     { x: 24, y: 22, o: 'h' }, { x: 25, y: 22, o: 'h' },   // lounge   -> corredor (2ª porta)
-    { x: 38, y: 22, o: 'h' }, { x: 39, y: 22, o: 'h' }    // reunião  -> corredor
+    { x: 35, y: 22, o: 'h' }, { x: 36, y: 22, o: 'h' }    // reunião  -> corredor (fora do telão)
   ];
 
   /* ---------- grade ---------- */
@@ -448,7 +448,10 @@ const WORLD = (() => {
 
     const showLeft  = !isWall(x, y + 1);   // face virada para +y
     const showRight = !isWall(x + 1, y);   // face virada para +x
-    if (!showLeft && !showRight) {
+    // quina escondida pelas vizinhas: só a tampa. Se for parapeito (o canto
+    // da sala de reunião), segue o caminho normal, senão ficava um buraco na
+    // tampa de vidro e uma tampa escura solta lá em cima
+    if (!showLeft && !showRight && !occ) {
       ISO.plane(ctx, x, y, 1, 1, WALL_H, C.wallTop);
       return;
     }

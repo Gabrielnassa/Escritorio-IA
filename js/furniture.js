@@ -58,6 +58,17 @@ const FURN = (() => {
     return base;
   }
 
+  /** telão de parede, largo demais para uma profundidade só: com a chave no
+      centro, as paredes de vidro atrás da ponta direita entravam depois e
+      cobriam a tela, e quem passava na frente era cortado por ela. Cada
+      tira de 1 tile tem a sua chave: depois da parede atrás dela e antes de
+      quem anda na fileira da frente.                                     */
+  function naParede(o) {
+    const n = Math.ceil(o.w - 1e-6);
+    for (let i = 0; i < n; i++)
+      add(Object.assign({}, o, { fatia: [o.x + i, Math.min(o.x + i + 1, o.x + o.w)], dk: o.x + i + o.y + .7 }));
+  }
+
   /* ===========================================================
      LAYOUT
      =========================================================== */
@@ -142,7 +153,8 @@ const FURN = (() => {
   restSlots.push({ id: 'PEB0', label: 'pebolim', x: 8.6,  y: 30.4, facing: 'e', act: 'no pebolim', obj: peb });
   restSlots.push({ id: 'PEB1', label: 'pebolim', x: 14.7, y: 30.4, facing: 'w', act: 'no pebolim', obj: peb });
 
-  add({ t: 'tvWall', x: 18.4, y: 23.15, w: 5, d: 0.5 });
+  naParede({ t: 'tvWall', x: 18.4, y: 23.15, w: 5, d: 0.5 });
+  block(18.4, 23.15, 5, .75);     // ninguém passa por trás da tela
   add({ t: 'rug', x: 18.0, y: 24.2, w: 5.8, d: 4.4, c: '#2b2a29' });
   // sofá de frente para o telão: o encosto fica do lado da câmera
   const sofaL = emCamadas({ t: 'sofa', x: 18.6, y: 26.4, w: 4.6, d: 1.6, dir: 's', c: '#2b1d16' }, 3);
@@ -183,7 +195,9 @@ const FURN = (() => {
       meetSlots.push(s); cadeira(s, 'chairSimple');
     });
 
-  add({ t: 'tvWall', x: 37.5, y: 23.15, w: 4.6, d: 0.5, meeting: true });
+  // a porta da sala fica em x 35..36 (world.js): o telão não fica mais no caminho
+  naParede({ t: 'tvWall', x: 37.5, y: 23.15, w: 4.6, d: 0.5, meeting: true });
+  block(37.5, 23.15, 4.6, .75);
   add({ t: 'plant', x: 33.4, y: 31.2, k: 0 });               block(33.4, 31.2, 1, 1);
 
   /* ---------- CORREDOR / RECEPÇÃO ---------- */
@@ -370,7 +384,9 @@ const FURN = (() => {
         [monY,      () => { monitor(ctx, x + .42,  monY, 1.5, false, o.busy, neon, t, o);
                             monitor(ctx, x + 2.24, monY, 1.5, false, o.busy, neon, t, o); }],
         [y + .06,   () => teclado(ctx, x + w / 2 - 1.0, y + .06, neon)],
-        [y + .18,   () => gabinete(ctx, x + w - .72, y + .18, neon, t)],
+        // o gabinete vai pela frente (y + .96): pela borda de trás ele entrava
+        // antes do monitor, que pintava por cima da janela de vidro dele
+        [y + .96,   () => gabinete(ctx, x + w - .72, y + .18, neon, t)],
         [y + d - .3,() => caneca(ctx, x + .2, y + d - .3, TOP, 0, .9)]
       ]);
     },
@@ -537,6 +553,19 @@ const FURN = (() => {
     },
 
     tvWall(ctx, o, t) {
+      // uma tira (ver naParede): desenha o telão inteiro recortado na faixa
+      // vertical dela, com as bordas no pixel inteiro para não sobrar costura
+      if (o.fatia) {
+        const m = ctx.getTransform(), snap = v => (Math.round(v * m.a + m.e) - m.e) / m.a;
+        const [a, b] = o.fatia, yc = o.y + .4;
+        const L = a <= o.x + 1e-6 ? -1e5 : snap(S(a, yc).x);
+        const R = b >= o.x + o.w - 1e-6 ? 1e5 : snap(S(b, yc).x);
+        ctx.save();
+        ctx.beginPath(); ctx.rect(L, -1e5, R - L, 2e5); ctx.clip();
+        DRAW.tvWall(ctx, Object.assign({}, o, { fatia: null }), t);
+        ctx.restore();
+        return;
+      }
       const { x, y, w } = o;
       const h = 62, z = 46;
       // pedestal: base no piso e duas colunas até a tela
@@ -1174,6 +1203,26 @@ const FURN = (() => {
         bx(seg(.80, 1.02, .32, .30), H * .74, ASSENTO, corD);
       }
     };
+    /* ---------- braços ----------
+       Cada braço é partido onde encontra o encosto: o pedaço de trás entra
+       antes do encosto e o da frente depois. Inteiro, ele era pintado por
+       cima da casca e parecia atravessar o encosto.                      */
+    const br = !gamer ? [] : eixoX
+      ? [[x + .1, y + .0, w - .2, .14], [x + .1, y + d - .14, w - .2, .14]]
+      : [[x + .0, y + .1, .14, d - .2], [x + w - .14, y + .1, .14, d - .2]];
+    const braco = a => {
+      ISO.box(ctx, a[0], a[1], a[2], a[3], 6, ASSENTO, '#1d2230');
+      ISO.box(ctx, a[0] - .02, a[1] - .02, a[2] + .04, a[3] + .04, 3, ASSENTO + 6, corD, { top: corL });
+    };
+    // face da frente do que o braço atravessa: a casca (n/w) ou as abas (s/e)
+    const corte = f === 'n' ? y + d - .32 : f === 'w' ? x + w - .32 : f === 's' ? y + .62 : x + .62;
+    const tras = [], frente = [];
+    for (const a of br) {
+      if (eixoX) { tras.push([a[0], a[1], corte - a[0], a[3]]); frente.push([corte, a[1], a[0] + a[2] - corte, a[3]]); }
+      else       { tras.push([a[0], a[1], a[2], corte - a[1]]); frente.push([a[0], corte, a[2], a[1] + a[3] - corte]); }
+    }
+
+    tras.forEach(braco);
     if (costasNaFrente) painel();
     else              { painel(); estofado(); }
 
@@ -1182,16 +1231,7 @@ const FURN = (() => {
     ISO.plane(ctx, tp[0], tp[1], tp[2], tp[3], ASSENTO + H, ISO.rgba(accent, .34));
     ctx.restore();
 
-    /* ---------- braços ---------- */
-    if (gamer) {
-      const br = eixoX
-        ? [[x + .1, y + .0, w - .2, .14], [x + .1, y + d - .14, w - .2, .14]]
-        : [[x + .0, y + .1, .14, d - .2], [x + w - .14, y + .1, .14, d - .2]];
-      for (const a of br) {
-        ISO.box(ctx, a[0], a[1], a[2], a[3], 6, ASSENTO, '#1d2230');
-        ISO.box(ctx, a[0] - .02, a[1] - .02, a[2] + .04, a[3] + .04, 3, ASSENTO + 6, corD, { top: corL });
-      }
-    }
+    frente.forEach(braco);
   }
 
   function dispenser(ctx, cx, cy, color, t) {
