@@ -154,6 +154,16 @@ button{font-family:inherit;color:inherit}
 }
 @keyframes rise{from{opacity:0;transform:translate(-50%,14px)}}
 
+/* alça na borda do palco: esconde e mostra o painel da direita */
+.alca-painel{position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:5;
+  width:22px;height:64px;padding:0;border:1px solid var(--line);border-right:none;
+  border-radius:10px 0 0 10px;background:rgba(12,15,26,.92);color:var(--txt-dim);
+  font-size:18px;line-height:1;cursor:pointer;backdrop-filter:blur(6px);transition:.15s}
+.alca-painel:hover{color:var(--txt);background:rgba(20,26,42,.95);width:26px}
+.alca-painel:focus-visible{outline:2px solid var(--acc-1);outline-offset:2px}
+#app.sem-painel{grid-template-columns:1fr 0}
+#app.sem-painel #panel{display:none}
+
 /* ===================== PAINEL ===================== */
 #panel{
   grid-area:panel;background:var(--panel);border-left:1px solid var(--line);
@@ -386,6 +396,8 @@ button{font-family:inherit;color:inherit}
     transform:translateX(102%);transition:.25s;z-index:50;box-shadow:var(--shadow)}
   #panel.open{transform:none}
   .only-mobile{display:inline-block}
+  .alca-painel{display:none}            /* no celular o painel abre pelo ☰ */
+  #app.sem-painel #panel{display:flex}
   .stats .stat{min-width:56px;padding:5px 7px}
   .brand-txt span{display:none}
 }

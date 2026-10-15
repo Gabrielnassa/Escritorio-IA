@@ -1545,6 +1545,21 @@ $('#btn-voice').addEventListener('click', toggleVoice);
 $('#btn-speak').addEventListener('click', () => speak(buildReport().fala));
 $('#btn-panel').addEventListener('click', () => $('#panel').classList.toggle('open'));
 
+/* painel da direita: a alça na borda do palco (ou a tecla P) esconde e
+   mostra; o escritório passa a ocupar a largura toda. A escolha fica
+   guardada neste navegador.                                           */
+function painelVisivel(mostrar, guardar = true) {
+  $('#app').classList.toggle('sem-painel', !mostrar);
+  const alca = $('#btn-painel');
+  alca.textContent = mostrar ? '›' : '‹';
+  alca.title = (mostrar ? 'Esconder' : 'Mostrar') + ' o painel (tecla P)';
+  alca.setAttribute('aria-expanded', String(mostrar));
+  resize();
+  if (guardar) try { localStorage.setItem('nassa-painel', mostrar ? 'aberto' : 'fechado'); } catch (e) { /* sem storage */ }
+}
+$('#btn-painel').addEventListener('click', () => painelVisivel($('#app').classList.contains('sem-painel')));
+try { if (localStorage.getItem('nassa-painel') === 'fechado') painelVisivel(false, false); } catch (e) { /* sem storage */ }
+
 $('#z-in').addEventListener('click',  () => cam.tz = Math.min(2.8, cam.tz * 1.2));
 $('#z-out').addEventListener('click', () => cam.tz = Math.max(0.1, cam.tz / 1.2));
 $('#z-fit').addEventListener('click', fit);
@@ -1599,6 +1614,9 @@ document.addEventListener('keydown', e => {
   if (e.key === 'r' || e.key === 'R') openReport();
   if (e.key === 'f' || e.key === 'F') fit();
   if (e.key === 'q' || e.key === 'Q') openQuadro();
+  // P esconde/mostra o painel; Cmd/Ctrl+P continua sendo imprimir
+  if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.metaKey && !e.altKey)
+    painelVisivel($('#app').classList.contains('sem-painel'));
 });
 
 /* ===========================================================
