@@ -18,6 +18,7 @@
   --f-mono:'JetBrains Mono','Consolas','SFMono-Regular',monospace;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}   /* .btn e .badge com display próprio também somem */
 html,body{min-height:100%}
 body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--f-ui);font-size:15px;
   line-height:1.45;-webkit-font-smoothing:antialiased}

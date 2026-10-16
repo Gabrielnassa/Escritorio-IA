@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM & Propostas · Nassa Tech</title>
+<link rel="icon" href="../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="nt-top"><div class="nt-emoji">🤝</div><div><h1>CRM &amp; Propostas</h1><div class="nt-quem">Duda · Comercial &amp; Propostas</div></div><div class="nt-acoes">
+  <button type="button" class="btn mini ghost" id="bRestaurar" title="Volta aos leads, propostas e preços de exemplo">↺ Restaurar<span class="longo">exemplo</span></button>
+  <button type="button" class="btn mini ghost" id="bCsv" title="Baixa os leads em CSV para abrir no Excel">⬇ Leads<span class="longo">CSV</span></button>
+  <button type="button" class="btn primary" id="bNovoLead">+ Novo lead</button>
+  <img class="nt-marca" src="../../assets/nassatech-logo-transparente.png" alt="Nassa Tech"></div></header>
+
+<main class="nt-main">
+  <section class="kpis" id="kpis" aria-label="Resumo comercial"></section>
+
+  <div class="abas" role="tablist" aria-label="Áreas do comercial">
+    <button type="button" class="aba on" role="tab" data-aba="funil" id="abaFunil" aria-controls="pFunil" aria-selected="true">Funil</button>
+    <button type="button" class="aba" role="tab" data-aba="propostas" id="abaProp" aria-controls="pProp" aria-selected="false">Nova proposta</button>
+    <button type="button" class="aba" role="tab" data-aba="salvas" id="abaSalvas" aria-controls="pSalvas" aria-selected="false">Propostas salvas <span class="conta-aba" id="nSalvas"></span></button>
+    <button type="button" class="aba" role="tab" data-aba="config" id="abaConfig" aria-controls="pConfig" aria-selected="false">Configurações</button>
+  </div>
+
+  <!-- ===================== FUNIL ===================== -->
+  <div class="painel-aba on" data-aba="funil" id="pFunil" role="tabpanel" aria-labelledby="abaFunil">
+    <section class="filtros card" aria-label="Filtros do funil">
+      <div class="f-busca">
+        <label class="rot" for="fBusca">Buscar</label>
+        <input type="search" class="campo" id="fBusca" placeholder="Nome, empresa ou projeto" autocomplete="off">
+      </div>
+      <div>
+        <label class="rot" for="fTemp">Temperatura</label>
+        <select class="campo" id="fTemp">
+          <option value="">Todas</option><option value="quente">Quente</option><option value="morno">Morno</option><option value="frio">Frio</option>
+        </select>
+      </div>
+      <div>
+        <label class="rot" for="fOrigem">Origem</label>
+        <select class="campo" id="fOrigem"></select>
+      </div>
+      <div class="f-info"><span id="fConta" class="dim" aria-live="polite"></span>
+        <button type="button" class="btn mini ghost" id="fLimpar">Limpar</button></div>
+    </section>
+    <div class="funil" id="funil"></div>
+    <p class="dica dim">Arraste os cartões entre as etapas ou use os botões ◀ ▶ de cada cartão. Clique no nome para abrir o histórico.</p>
+  </div>
+
+  <!-- ===================== GERADOR DE PROPOSTAS ===================== -->
+  <div class="painel-aba" data-aba="propostas" id="pProp" role="tabpanel" aria-labelledby="abaProp">
+    <div class="gerador nao-imprime">
+      <form class="card form" id="fProp" autocomplete="off" novalidate>
+        <div class="editando" id="editando" hidden></div>
+
+        <fieldset class="bloco">
+          <legend class="titulo-secao">1 · Cliente</legend>
+          <div>
+            <label class="rot" for="pLead">Lead do funil</label>
+            <select class="campo" id="pLead" name="leadId"></select>
+          </div>
+          <div class="par">
+            <div><label class="rot" for="pEmpresa">Empresa / cliente</label>
+              <input class="campo" id="pEmpresa" name="empresa" maxlength="100" placeholder="Ex.: Padaria Pão de Mel"></div>
+            <div><label class="rot" for="pCliente">Aos cuidados de</label>
+              <input class="campo" id="pCliente" name="cliente" maxlength="80" placeholder="Nome de quem decide"></div>
+          </div>
+          <div><label class="rot" for="pDesc">Objetivo do projeto</label>
+            <textarea class="campo" id="pDesc" name="descricao" rows="2" maxlength="600" placeholder="O que o cliente quer resolver — aparece no começo da proposta"></textarea></div>
+        </fieldset>
+
+        <fieldset class="bloco">
+          <legend class="titulo-secao">2 · Tipo de projeto</legend>
+          <div class="tipos" id="pTipos"></div>
+          <div class="inclui" id="pInclui"></div>
+        </fieldset>
+
+        <fieldset class="bloco">
+          <legend class="titulo-secao">3 · Adicionais</legend>
+          <div class="addons" id="pAddons"></div>
+        </fieldset>
+
+        <fieldset class="bloco">
+          <legend class="titulo-secao">4 · Complexidade e prazo</legend>
+          <div class="seg" id="pComplex" role="radiogroup" aria-label="Complexidade"></div>
+          <label class="check-linha"><input type="checkbox" id="pUrgente" name="urgente"><span id="pUrgTxt">Entrega urgente</span></label>
+        </fieldset>
+
+        <fieldset class="bloco">
+          <legend class="titulo-secao">5 · Pagamento</legend>
+          <div class="par">
+            <div><label class="rot" for="pDesconto">Desconto negociado (%)</label>
+              <input class="campo" type="number" id="pDesconto" name="desconto" min="0" step="1" inputmode="decimal"></div>
+            <div><label class="rot" for="pParcelas">Parcelas</label>
+              <select class="campo" id="pParcelas" name="parcelas"></select></div>
+          </div>
+          <div class="seg seg-2" role="radiogroup" aria-label="Forma de pagamento">
+            <label class="opcao"><input type="radio" class="sr" name="pagamento" value="avista"><span class="opcao-corpo"><b>À vista</b><small id="pAvistaTxt">Pix ou boleto</small></span></label>
+            <label class="opcao"><input type="radio" class="sr" name="pagamento" value="parcelado"><span class="opcao-corpo"><b>Parcelado</b><small id="pParcTxt">Em até 12x sem juros</small></span></label>
+          </div>
+        </fieldset>
+      </form>
+
+      <aside class="card resumo" id="resumo" aria-label="Resumo da proposta">
+        <h2>Resumo</h2>
+        <div id="resumoCorpo"></div>
+        <div class="resumo-acoes">
+          <button type="button" class="btn primary" id="bSalvarProp">💾 Salvar proposta</button>
+          <div class="linha">
+            <button type="button" class="btn" id="bCopiar">Copiar texto</button>
+            <button type="button" class="btn" id="bImprimir">Imprimir / salvar PDF</button>
+          </div>
+          <button type="button" class="btn ghost mini" id="bLimparProp">Começar proposta em branco</button>
+        </div>
+      </aside>
+    </div>
+
+    <section class="previa" aria-labelledby="tPrevia">
+      <div class="previa-topo nao-imprime">
+        <h2 id="tPrevia" class="titulo-secao">Pré-visualização do documento</h2>
+        <span class="dim pequeno">É exatamente isto que sai na impressão e no PDF.</span>
+      </div>
+      <article class="doc" id="doc" aria-label="Documento da proposta"></article>
+    </section>
+  </div>
+
+  <!-- ===================== PROPOSTAS SALVAS ===================== -->
+  <div class="painel-aba" data-aba="salvas" id="pSalvas" role="tabpanel" aria-labelledby="abaSalvas">
+    <section class="card">
+      <div class="salvas-topo">
+        <h2>Propostas salvas</h2>
+        <div class="linha">
+          <label class="rot sr" for="sStatus">Filtrar por status</label>
+          <select class="campo campo-curto" id="sStatus"></select>
+        </div>
+      </div>
+      <div class="rolagem"><table class="tabela salvas" id="tSalvas"></table></div>
+    </section>
+  </div>
+
+  <!-- ===================== CONFIGURAÇÕES ===================== -->
+  <div class="painel-aba" data-aba="config" id="pConfig" role="tabpanel" aria-labelledby="abaConfig">
+    <p class="dim cfg-nota">A tabela de preços alimenta o gerador de propostas. Cada alteração é salva na hora; propostas já salvas mantêm o valor com que foram feitas.</p>
+    <section class="card cfg-bloco" aria-labelledby="tCfgTipos">
+      <h2 id="tCfgTipos">Tipos de projeto</h2>
+      <div class="cfg-tipos" id="cfgTipos"></div>
+    </section>
+    <div class="grade c2 cfg-bloco">
+      <section class="card" aria-labelledby="tCfgAdd">
+        <h2 id="tCfgAdd">Adicionais</h2>
+        <div class="rolagem"><table class="tabela cfg-tab" id="cfgAddons"></table></div>
+      </section>
+      <section class="card" aria-labelledby="tCfgCond">
+        <h2 id="tCfgCond">Complexidade e condições</h2>
+        <div class="rolagem"><table class="tabela cfg-tab" id="cfgComplex"></table></div>
+        <div class="cfg-cond" id="cfgCond"></div>
+      </section>
+    </div>
+    <div class="linha cfg-rodape">
+      <button type="button" class="btn danger" id="bPrecosPadrao">Restaurar preços padrão</button>
+      <span class="dim pequeno" id="cfgSalvo" aria-live="polite"></span>
+    </div>
+  </div>
+</main>
+
+<!-- lead: criar e editar -->
+<div class="modal-fundo" id="mLead" hidden>
+  <div class="modal modal-lead" role="dialog" aria-modal="true" aria-labelledby="mLeadTit">
+    <div class="m-topo"><h3 id="mLeadTit">Lead</h3><button type="button" class="btn ghost mini" data-fechar aria-label="Fechar">✕</button></div>
+    <form class="form" id="fLead" autocomplete="off" novalidate>
+      <div class="par">
+        <div><label class="rot" for="lNome">Nome do contato</label><input class="campo" id="lNome" name="nome" maxlength="80" required></div>
+        <div><label class="rot" for="lEmpresa">Empresa</label><input class="campo" id="lEmpresa" name="empresa" maxlength="100"></div>
+      </div>
+      <div class="par">
+        <div><label class="rot" for="lTel">WhatsApp / telefone</label><input class="campo" id="lTel" name="tel" maxlength="30" inputmode="tel" placeholder="(11) 9 0000-0000"></div>
+        <div><label class="rot" for="lEmail">E-mail</label><input class="campo" id="lEmail" name="email" type="email" maxlength="120"></div>
+      </div>
+      <div class="par">
+        <div><label class="rot" for="lOrigem">Origem</label><select class="campo" id="lOrigem" name="origem"></select></div>
+        <div><label class="rot" for="lTemp">Temperatura</label><select class="campo" id="lTemp" name="temp">
+          <option value="quente">Quente — quer fechar logo</option><option value="morno">Morno — avaliando</option><option value="frio">Frio — sem pressa</option></select></div>
+      </div>
+      <div class="par">
+        <div><label class="rot" for="lTipo">Interesse (tipo de projeto)</label><select class="campo" id="lTipo" name="tipo"></select></div>
+        <div><label class="rot" for="lValor">Valor estimado (R$)</label><input class="campo" id="lValor" name="valor" type="number" min="0" max="99999999" step="100" inputmode="decimal"></div>
+      </div>
+      <div><label class="rot" for="lDetalhe">Detalhe do interesse</label><input class="campo" id="lDetalhe" name="detalhe" maxlength="140" placeholder="Ex.: agendamento pelo WhatsApp"></div>
+      <div class="par">
+        <div><label class="rot" for="lPasso">Próximo passo</label><input class="campo" id="lPasso" name="passo" maxlength="120" placeholder="Ex.: Ligar para apresentar a proposta"></div>
+        <div><label class="rot" for="lPassoData">Data do próximo passo</label><input class="campo" id="lPassoData" name="passoData" type="date"></div>
+      </div>
+      <div><label class="rot" for="lEtapa">Etapa do funil</label><select class="campo" id="lEtapa" name="etapa"></select></div>
+      <p class="perdido-info" id="lPerdidoInfo" hidden></p>
+
+      <section class="historico" id="lHist" aria-labelledby="lHistTit">
+        <h4 id="lHistTit">Histórico de interações</h4>
+        <div class="hist-nova">
+          <label class="rot" for="lNota">Nova anotação</label>
+          <textarea class="campo" id="lNota" rows="2" maxlength="600" placeholder="Ex.: Liguei, pediu para mandar exemplos de sites de clínicas"></textarea>
+          <button type="button" class="btn mini" id="lAddNota">+ Adicionar ao histórico</button>
+        </div>
+        <ol class="hist-lista" id="lHistLista"></ol>
+        <div id="lProps"></div>
+      </section>
+    </form>
+    <div class="rodape">
+      <button type="button" class="btn danger mini" id="lExcluir">Excluir</button>
+      <button type="button" class="btn ghost mini" id="lPerder">Marcar como perdido</button>
+      <button type="button" class="btn mini" id="lGerar">📄 Gerar proposta</button>
+      <span class="espaco"></span>
+      <button type="button" class="btn ghost" data-fechar>Cancelar</button>
+      <button type="button" class="btn primary" id="lSalvar">Salvar lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- perdido: motivo -->
+<div class="modal-fundo" id="mPerdido" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mPerdTit">
+    <h3 id="mPerdTit">Marcar como perdido</h3>
+    <p class="dim" id="mPerdQuem"></p>
+    <div class="form">
+      <div><label class="rot" for="perdMotivo">Motivo</label><select class="campo" id="perdMotivo"></select></div>
+      <div><label class="rot" for="perdDet">Detalhe (opcional)</label>
+        <textarea class="campo" id="perdDet" rows="3" maxlength="300" placeholder="Ex.: Fechou com uma agência do bairro por R$ 3.000"></textarea></div>
+    </div>
+    <div class="rodape">
+      <button type="button" class="btn ghost" data-fechar>Cancelar</button>
+      <button type="button" class="btn danger" id="perdOk">Marcar como perdido</button>
+    </div>
+  </div>
+</div>
+
+<!-- salvar proposta -->
+<div class="modal-fundo" id="mSalvar" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mSalvTit">
+    <h3 id="mSalvTit">Salvar proposta</h3>
+    <div class="salvar-resumo" id="mSalvResumo"></div>
+    <div class="form">
+      <div><label class="rot" for="svStatus">Status</label><select class="campo" id="svStatus"></select></div>
+      <label class="check-linha" id="svLeadLinha"><input type="checkbox" id="svLead"><span id="svLeadTxt"></span></label>
+    </div>
+    <div class="rodape">
+      <button type="button" class="btn ghost" data-fechar>Cancelar</button>
+      <button type="button" class="btn primary" id="svOk">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script src="../base.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

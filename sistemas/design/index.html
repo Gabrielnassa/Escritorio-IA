@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design System Nassa · Nassa Tech</title>
+<link rel="icon" href="../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="nt-top"><div class="nt-emoji">✏️</div><div><h1>Design System Nassa</h1><div class="nt-quem">Lia · UI/UX Design</div></div><div class="nt-acoes">
+  <button type="button" class="btn mini ghost" id="bRestaurar" title="Volta às cores personalizadas e ajustes de exemplo">↺ Restaurar<span class="longo">exemplo</span></button>
+  <button type="button" class="btn mini primary" id="bExportar">⬇ Exportar tokens</button>
+  <img class="nt-marca" src="../../assets/nassatech-logo-transparente.png" alt="Nassa Tech"></div></header>
+
+<main class="nt-main">
+  <section class="kpis" id="kpis" aria-label="Resumo do design system" aria-live="polite"></section>
+
+  <div class="abas" role="tablist" aria-label="Áreas do design system">
+    <button type="button" class="aba on" role="tab" data-aba="cores" aria-selected="true">Cores</button>
+    <button type="button" class="aba" role="tab" data-aba="contraste" aria-selected="false">Contraste</button>
+    <button type="button" class="aba" role="tab" data-aba="tipo" aria-selected="false">Tipografia</button>
+    <button type="button" class="aba" role="tab" data-aba="comp" aria-selected="false">Componentes</button>
+    <button type="button" class="aba" role="tab" data-aba="espaco" aria-selected="false">Espaço e raios</button>
+    <button type="button" class="aba" role="tab" data-aba="icones" aria-selected="false">Ícones</button>
+    <button type="button" class="aba" role="tab" data-aba="tokens" aria-selected="false">Tokens</button>
+  </div>
+
+  <!-- ===== cores da marca + as que a equipe criou para clientes ===== -->
+  <section class="painel-aba on" data-aba="cores" aria-label="Cores">
+    <div class="faixa">
+      <p class="dim">Clique na amostra para copiar o hexadecimal. O contraste é calculado contra o <b class="branco">Branco Gelo</b> e o <b class="branco">Fundo Noite</b> pela fórmula de luminância da WCAG 2.1.</p>
+      <button type="button" class="btn primary" id="bNovaCor">＋ Nova cor</button>
+    </div>
+    <div id="paleta"></div>
+  </section>
+
+  <!-- ===== verificador de contraste ===== -->
+  <section class="painel-aba" data-aba="contraste" aria-label="Verificador de contraste">
+    <div class="contraste">
+      <div class="card form" id="formContraste">
+        <h3>Verificador de contraste</h3>
+        <div>
+          <label class="rot" for="cTxtHex">Cor do texto</label>
+          <div class="cor-campo">
+            <input type="color" id="cTxtPick" aria-label="Escolher cor do texto">
+            <input class="campo mono" id="cTxtHex" maxlength="7" spellcheck="false" autocomplete="off">
+          </div>
+        </div>
+        <div>
+          <label class="rot" for="cFundoHex">Cor do fundo</label>
+          <div class="cor-campo">
+            <input type="color" id="cFundoPick" aria-label="Escolher cor do fundo">
+            <input class="campo mono" id="cFundoHex" maxlength="7" spellcheck="false" autocomplete="off">
+          </div>
+        </div>
+        <div class="linha">
+          <button type="button" class="btn" id="bInverter">⇅ Inverter</button>
+          <button type="button" class="btn primary" id="bSugerir">✦ Sugerir cor acessível</button>
+        </div>
+        <div>
+          <div class="faixa atalhos">
+            <span class="rot" id="rotAtalhos">Atalhos da paleta</span>
+            <div class="seg pequeno-seg" role="group" aria-label="Aplicar a cor escolhida em">
+              <button type="button" class="btn mini" data-alvo="fg" aria-pressed="true">no texto</button>
+              <button type="button" class="btn mini" data-alvo="bg" aria-pressed="false">no fundo</button>
+            </div>
+          </div>
+          <div class="chips" id="chipsPaleta" role="group" aria-labelledby="rotAtalhos"></div>
+        </div>
+      </div>
+
+      <div class="card resultado">
+        <div class="previa" id="previa">
+          <p class="p-normal">Texto normal (16 px): a Clínica Sorriso confirma sua consulta de quinta às 14h30.</p>
+          <p class="p-grande">Texto grande (24 px): Agende pelo WhatsApp</p>
+          <span class="p-botao">Botão de exemplo</span>
+        </div>
+        <div class="razao"><b id="razao">—</b><span id="razaoTxt" class="dim"></span></div>
+        <div class="criterios" id="criterios"></div>
+      </div>
+    </div>
+
+    <div class="card matriz-card">
+      <div class="faixa">
+        <div>
+          <h3>Pares da marca</h3>
+          <p class="dim pequeno">Cada cor de texto contra os fundos da interface. Clique numa célula para abrir o par no verificador.</p>
+        </div>
+      </div>
+      <div class="rolagem"><table class="tabela matriz" id="matriz"></table></div>
+    </div>
+  </section>
+
+  <!-- ===== tipografia ===== -->
+  <section class="painel-aba" data-aba="tipo" aria-label="Tipografia">
+    <div class="card form tipo-ctl">
+      <div class="tipo-campos">
+        <div class="amostra-campo">
+          <label class="rot" for="tAmostra">Texto de amostra</label>
+          <input class="campo" id="tAmostra" maxlength="140">
+        </div>
+        <div>
+          <label class="rot" for="tBase">Corpo (base)</label>
+          <select class="campo" id="tBase">
+            <option value="14">14 px</option><option value="15">15 px</option>
+            <option value="16">16 px</option><option value="17">17 px</option><option value="18">18 px</option>
+          </select>
+        </div>
+        <div>
+          <label class="rot" for="tRazao">Razão da escala</label>
+          <select class="campo" id="tRazao">
+            <option value="1.125">1,125 · Segunda maior</option>
+            <option value="1.2">1,200 · Terça menor</option>
+            <option value="1.25">1,250 · Terça maior</option>
+            <option value="1.333">1,333 · Quarta justa</option>
+          </select>
+        </div>
+      </div>
+      <p class="dim pequeno">Títulos em <b class="branco">Barlow</b>, interface e corpo em <b class="branco">Barlow Semi Condensed</b>. A escala multiplica o corpo pela razão a cada nível e vai para a aba Tokens.</p>
+    </div>
+    <div class="escala" id="escala"></div>
+  </section>
+
+  <!-- ===== componentes ===== -->
+  <section class="painel-aba" data-aba="comp" aria-label="Componentes">
+    <div class="comps" id="comps"></div>
+  </section>
+
+  <!-- ===== espaçamento e raios ===== -->
+  <section class="painel-aba" data-aba="espaco" aria-label="Espaçamento e raios">
+    <div class="grade c2">
+      <div class="card">
+        <h3>Espaçamento</h3>
+        <p class="dim pequeno">Múltiplos de 4 px. Use 8–16 dentro dos componentes e 24–48 entre seções. Clique para copiar a variável.</p>
+        <div class="espacos" id="espacos"></div>
+      </div>
+      <div class="card">
+        <h3>Raios e sombra</h3>
+        <p class="dim pequeno">Campos e botões pequenos usam <span class="mono">md</span>; cartões, <span class="mono">lg</span>; janelas, <span class="mono">xl</span>.</p>
+        <div class="raios" id="raios"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ícones ===== -->
+  <section class="painel-aba" data-aba="icones" aria-label="Ícones e emoji">
+    <div class="grade c2">
+      <div class="card">
+        <h3>Emoji dos sistemas do escritório</h3>
+        <p class="dim pequeno">Um emoji por sistema, em caixa de 40 px com raio de 11 px, sempre ao lado do nome. Clique para copiar.</p>
+        <div class="emojis" id="emojisSis"><div class="vazio">Carregando o catálogo…</div></div>
+      </div>
+      <div class="card">
+        <h3>Símbolos de ação</h3>
+        <p class="dim pequeno">Caracteres de texto, sem imagem: herdam a cor do botão e passam no contraste junto com o rótulo. Nunca use o símbolo sozinho sem texto ou <span class="mono">aria-label</span>.</p>
+        <div class="rolagem"><table class="tabela" id="simbolos"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== exportar tokens ===== -->
+  <section class="painel-aba" data-aba="tokens" aria-label="Tokens">
+    <div class="card">
+      <div class="tokens-topo">
+        <div class="seg" role="group" aria-label="Formato">
+          <button type="button" class="btn" data-fmt="css" aria-pressed="true">CSS</button>
+          <button type="button" class="btn" data-fmt="json" aria-pressed="false">JSON</button>
+          <button type="button" class="btn" data-fmt="tailwind" aria-pressed="false">Tailwind</button>
+        </div>
+        <div class="prefixo">
+          <label class="rot" for="kPrefixo">Prefixo</label>
+          <input class="campo mono" id="kPrefixo" maxlength="12" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="linha acoes-tk">
+          <button type="button" class="btn" id="bCopiarTk">⧉ Copiar</button>
+          <button type="button" class="btn primary" id="bBaixarTk">⬇ Baixar</button>
+        </div>
+      </div>
+      <p class="dim pequeno" id="tkInfo"></p>
+      <pre class="log codigo-tk" id="tkSaida" tabindex="0" aria-label="Código dos tokens"></pre>
+    </div>
+  </section>
+</main>
+
+<!-- ===== janela: nova cor ===== -->
+<div class="modal-fundo" id="mCor" hidden>
+  <form class="modal form" id="fCor" role="dialog" aria-modal="true" aria-labelledby="mCorTit" novalidate>
+    <h3 id="mCorTit">Nova cor na paleta</h3>
+    <div>
+      <label class="rot" for="fNome">Nome</label>
+      <input class="campo" id="fNome" maxlength="32" placeholder="Ex.: Laranja Força Total" required>
+    </div>
+    <div>
+      <label class="rot" for="fHex">Cor</label>
+      <div class="cor-campo">
+        <input type="color" id="fPick" value="#ff7a1a" aria-label="Escolher a cor">
+        <input class="campo mono" id="fHex" maxlength="7" value="#FF7A1A" spellcheck="false" autocomplete="off" required>
+      </div>
+    </div>
+    <div>
+      <label class="rot" for="fUso">Onde usar</label>
+      <input class="campo" id="fUso" maxlength="80" placeholder="Ex.: Academia Força Total — matrícula">
+    </div>
+    <div class="cor-previa" id="fPrevia"></div>
+    <p class="msg-erro" id="fErro" role="alert"></p>
+    <div class="rodape">
+      <button type="button" class="btn ghost" id="bCancelarCor">Cancelar</button>
+      <button type="submit" class="btn primary">Adicionar à paleta</button>
+    </div>
+  </form>
+</div>
+
+<script src="../base.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

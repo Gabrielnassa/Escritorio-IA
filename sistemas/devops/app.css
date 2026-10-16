@@ -1,0 +1,143 @@
+/* ===========================================================
+   sistemas/devops/app.css — Central de Deploy
+   Só o que é deste sistema; o resto vem de ../base.css.
+   =========================================================== */
+.pequeno{font-size:12.5px}
+.entre{justify-content:space-between}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.kpi small{display:block;font-size:12px;color:var(--txt-3);margin-top:2px}
+@media (max-width:480px){ .nt-top .longo{display:none} }
+
+/* ---------- barra de verificação ---------- */
+.barra-check{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;padding:12px 16px}
+.bc-info{display:flex;align-items:center;gap:12px;min-width:0}
+.bc-info .ponto{width:12px;height:12px}
+.bc-acoes{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* interruptor: um checkbox de verdade por baixo, para teclado e leitor de tela */
+.chave{display:inline-flex;align-items:center;gap:9px;cursor:pointer;font-weight:600;font-size:14px;user-select:none}
+.chave input{position:absolute;opacity:0;width:1px;height:1px}
+.chave .trilho{width:38px;height:22px;border-radius:99px;background:var(--panel-3);border:1px solid var(--line-2);position:relative;transition:.15s;flex:0 0 auto}
+.chave .trilho::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--txt-dim);transition:.15s}
+.chave input:checked + .trilho{background:rgba(0,179,255,.25);border-color:var(--acc)}
+.chave input:checked + .trilho::after{left:19px;background:var(--acc)}
+.chave input:focus-visible + .trilho{outline:2px solid var(--acc);outline-offset:2px}
+
+/* ---------- escritório (página e API) ---------- */
+.infra{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:18px}
+.infra-item{display:flex;gap:12px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.infra-item .ic{font-size:20px;line-height:1;margin-top:2px}
+.infra-item b{display:block;font-size:14.5px}
+.infra-item .dim{font-size:13px}
+.infra-item.info{border-color:rgba(0,179,255,.25);background:linear-gradient(135deg,rgba(0,179,255,.06),transparent 60%),var(--panel)}
+
+/* ---------- cartões dos sistemas ---------- */
+.grade-sis{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:12px;margin-bottom:18px}
+.sis{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;min-width:0}
+.sis.err{border-color:rgba(255,107,107,.3)}
+.sis.verificando{opacity:.7}
+.sis-topo{display:flex;align-items:center;gap:10px;min-width:0}
+.sis-emoji{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:18px;background:var(--panel-2);border:1px solid var(--line);flex:0 0 auto}
+.sis-nome{min-width:0;flex:1}
+.sis-nome b{display:block;font-family:var(--f-display);font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sis-nome span{font-size:12.5px;color:var(--txt-dim)}
+.sis-dados{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sis-dados div{background:var(--bg-2);border:1px solid #151b2c;border-radius:8px;padding:6px 8px;min-width:0}
+.sis-dados span{display:block;font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--txt-3)}
+.sis-dados b{font-family:var(--f-mono);font-size:13px;font-weight:600;white-space:nowrap}
+.sis-pe{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--txt-dim)}
+.sis-pe a{font-size:12px}
+
+/* barrinha dos últimos 30 testes, mais antigo à esquerda */
+.uptime{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;height:20px}
+.uptime i{border-radius:2px;background:#1a2133}
+.uptime i.ok{background:var(--ok)} .uptime i.warn{background:var(--warn)} .uptime i.err{background:var(--err)}
+.uptime-leg{display:flex;justify-content:space-between;font-size:11.5px;color:var(--txt-3);margin-top:-4px}
+
+.registro .log{max-height:180px}
+.registro h3{margin:0}
+.registro .linha{margin-bottom:10px}
+
+/* ---------- pipeline ---------- */
+.pipe{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:14px;margin-bottom:14px;align-items:start}
+@media (max-width:900px){.pipe{grid-template-columns:1fr}}
+.pipe form h3{margin:0}
+.amb{border:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.amb legend{padding:0;grid-column:1/-1}
+.amb label{position:relative;cursor:pointer}
+.amb input{position:absolute;opacity:0}
+.amb span{display:block;text-align:center;padding:9px 8px;border-radius:9px;border:1px solid var(--line-2);background:var(--bg-2);font-weight:600;font-size:14px;transition:.15s}
+.amb input:checked + span{border-color:var(--acc);color:var(--acc);background:rgba(0,179,255,.08)}
+.amb input[value=prod]:checked + span{border-color:var(--warn);color:var(--warn);background:rgba(255,176,32,.08)}
+.amb input:focus-visible + span{outline:2px solid var(--acc);outline-offset:2px}
+.marca{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;color:var(--txt-dim);cursor:pointer}
+.marca input{margin-top:3px;accent-color:var(--acc)}
+.marca input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#dProjInfo{margin-top:5px}
+
+.execucao{display:grid;gap:12px;min-width:0}
+.execucao h3{margin:0}
+.etapas{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+@media (max-width:1100px){.etapas{grid-template-columns:repeat(4,1fr)}}
+@media (max-width:480px){.etapas{grid-template-columns:repeat(2,1fr)}}
+.etapas li{background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:7px 9px;min-width:0}
+.etapas b{display:flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.etapas span{font-family:var(--f-mono);font-size:11.5px;color:var(--txt-3)}
+.etapas li.rodando{border-color:var(--acc);box-shadow:0 0 0 1px rgba(0,179,255,.25) inset}
+.etapas li.rodando .ponto{background:var(--acc);animation:pisca 1s infinite}
+.etapas li.ok .ponto{background:var(--ok)} .etapas li.ok{border-color:rgba(35,224,138,.3)}
+.etapas li.err .ponto{background:var(--err)} .etapas li.err{border-color:rgba(255,107,107,.45)}
+.etapas li.pulada{opacity:.45}
+@keyframes pisca{50%{opacity:.25}}
+.log-pipe{height:300px;max-height:none}
+.log .t{color:var(--txt-3)} .log .acc{color:var(--acc)}
+
+.filtro-hist{display:flex;align-items:center;gap:8px}
+.filtro-hist .rot{margin:0}
+.filtro-hist .campo{width:auto;min-width:200px;padding:6px 10px}
+.card > .linha.entre{margin-bottom:10px}
+.card > .linha.entre h3{margin:0}
+.acoes-linha{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.commit{color:var(--acc-3)}
+.msg-commit{display:block;font-size:12.5px;color:var(--txt-dim);max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- domínios ---------- */
+.dom-topo{display:grid;grid-template-columns:1fr 220px auto;gap:12px;align-items:end;margin-bottom:12px}
+@media (max-width:700px){.dom-topo{grid-template-columns:1fr 1fr}.dom-topo .btn{grid-column:1/-1}}
+.dias{display:block;margin-top:3px}
+.legenda{margin:12px 0 0}
+.erro-form{color:var(--err);font-size:13px;min-height:0}
+.erro-form:empty{display:none}
+.conf-txt{color:var(--txt-dim)}
+.conf-txt p{margin:0 0 8px}
+.conf-txt b{color:var(--txt)}
+.modal-log{width:min(760px,100%)}
+.modal-log .log{max-height:60vh}
+
+/* tabelas viram cartões no celular: cada célula traz o rótulo da coluna */
+@media (max-width:760px){
+  .tabela-cartao thead{display:none}
+  .tabela-cartao,.tabela-cartao tbody,.tabela-cartao tr,.tabela-cartao td{display:block;width:100%}
+  .tabela-cartao tr{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:10px;background:var(--bg-2)}
+  .tabela-cartao td{border:none;padding:4px 0;display:flex;justify-content:space-between;gap:12px;text-align:right}
+  .tabela-cartao td::before{content:attr(data-r);font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--txt-3);text-align:left;flex:0 0 auto}
+  .tabela-cartao td.so-acoes::before{content:none}
+  .tabela-cartao td.so-acoes{justify-content:flex-end;padding-top:8px}
+  .tabela-cartao tr:hover td{background:none}
+  .msg-commit{max-width:180px}
+  .filtro-hist .campo{min-width:0}
+}
+.btn.primary.perigo{background:linear-gradient(135deg,#ff7a59,#e0364f)}
+.st{gap:5px}
+@media (max-width:760px){.tabela-cartao .st{justify-content:flex-end}}
+#contagem[hidden]{display:none}
+.amb legend,.filtro-hist .rot{font-size:12px;color:var(--txt-dim);letter-spacing:.4px;margin:0 0 5px}
+.filtro-hist .rot{margin:0}
+.mais{text-align:center;margin-top:10px}
+.sis-pe .mono{font-size:12px;color:var(--txt-dim)}
+.btn[hidden]{display:none}
+#bRestaurar{gap:4px}
+.infra-item b .ponto{margin-right:6px;vertical-align:1px}
+/* "venceu há 5 dias" numa linha só; nome de cliente comprido quebra em vez de vazar */
+#tDom .badge,#tDom td[data-r="SSL vence"] .pequeno{white-space:nowrap}
+#tDom td[data-r="Cliente"]{overflow-wrap:anywhere}

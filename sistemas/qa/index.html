@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central de Qualidade · Nassa Tech</title>
+<link rel="icon" href="../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="nt-top"><div class="nt-emoji">🧪</div><div><h1>Central de Qualidade</h1><div class="nt-quem">Theo · QA &amp; Testes</div></div><div class="nt-acoes">
+  <button type="button" class="btn mini ghost" id="bRestaurar" title="Volta aos bugs e ao histórico de exemplo">↺ Restaurar<span class="longo">exemplo</span></button>
+  <button type="button" class="btn primary" id="bRodar">▶ Rodar testes</button>
+  <img class="nt-marca" src="../../assets/nassatech-logo-transparente.png" alt="Nassa Tech"></div></header>
+
+<main class="nt-main">
+  <section class="kpis" id="kpis" aria-label="Resumo da qualidade" aria-live="polite"></section>
+
+  <div class="abas" role="tablist" aria-label="Áreas da central">
+    <button type="button" class="aba on" role="tab" data-aba="testes" aria-selected="true">Testes</button>
+    <button type="button" class="aba" role="tab" data-aba="bugs" aria-selected="false">Bugs <span class="cont" id="contBugs"></span></button>
+  </div>
+
+  <!-- ===== testes: fumaça nos sistemas + unitários da base ===== -->
+  <section class="painel-aba on" data-aba="testes" aria-label="Testes">
+    <div class="card resumo" id="resumo" aria-live="polite">
+      <div class="rs-status">
+        <span class="ponto" id="rsPonto"></span>
+        <div class="rs-txt">
+          <b id="rsTitulo">Nenhuma execução detalhada ainda</b>
+          <div class="dim pequeno" id="rsSub">Clique em Rodar testes para conferir cada sistema do escritório.</div>
+        </div>
+      </div>
+      <div class="rs-barra">
+        <div class="barra" id="rsBarra" role="img" aria-label="Sem resultados"><i class="b-ok"></i><i class="b-err"></i><i class="b-ign"></i></div>
+        <div class="rs-legenda" id="rsLegenda"></div>
+      </div>
+    </div>
+
+    <div class="duas">
+      <div class="card arvore-card">
+        <div class="linha entre cab">
+          <h3>Resultados por suíte</h3>
+          <div class="linha">
+            <label class="marca"><input type="checkbox" id="cSoFalhas"> Só falhas</label>
+            <button type="button" class="btn mini ghost" id="bExpandir">Expandir tudo</button>
+            <button type="button" class="btn mini ghost" id="bRelatorio">Baixar relatório</button>
+          </div>
+        </div>
+        <div id="arvore" class="arvore"></div>
+      </div>
+
+      <aside class="lado">
+        <div class="card">
+          <div class="linha entre cab">
+            <h3>Tendência</h3>
+            <span class="dim pequeno" id="tendInfo"></span>
+          </div>
+          <div id="grafico" class="grafico"></div>
+        </div>
+
+        <div class="card">
+          <div class="linha entre cab">
+            <h3>Execuções</h3>
+            <button type="button" class="btn mini ghost" id="bLimparHist">Limpar histórico</button>
+          </div>
+          <ol class="execucoes" id="execucoes"></ol>
+        </div>
+
+        <form class="card form ajustes" id="fAjustes">
+          <h3>Ajustes da bateria</h3>
+          <div>
+            <label class="rot" for="aLimite">Tempo máximo de carga (ms)</label>
+            <input type="number" class="campo" id="aLimite" min="200" max="20000" step="100">
+          </div>
+          <label class="marca"><input type="checkbox" id="aUnit"> Testes unitários da base (NT)</label>
+          <label class="marca"><input type="checkbox" id="aFumaca"> Testes de fumaça dos sistemas</label>
+          <p class="dim pequeno">Cada sistema abre num iframe escondido com um vigia de erros injetado antes de qualquer script da página.</p>
+        </form>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===== bugs ===== -->
+  <section class="painel-aba" data-aba="bugs" aria-label="Bugs">
+    <div class="card">
+      <div class="filtros">
+        <div class="f-busca">
+          <label class="rot" for="fBusca">Buscar</label>
+          <input type="search" class="campo" id="fBusca" placeholder="Título, passos ou código" autocomplete="off">
+        </div>
+        <div><label class="rot" for="fSev">Severidade</label><select class="campo" id="fSev"></select></div>
+        <div><label class="rot" for="fStatus">Status</label><select class="campo" id="fStatus"></select></div>
+        <div><label class="rot" for="fSis">Sistema</label><select class="campo" id="fSis"></select></div>
+      </div>
+      <div class="linha entre barra-bugs">
+        <span class="dim" id="bugsInfo" aria-live="polite"></span>
+        <div class="linha">
+          <button type="button" class="btn mini ghost" id="bLimparFiltros">Limpar filtros</button>
+          <button type="button" class="btn mini ghost" id="bCsv">Exportar CSV</button>
+          <button type="button" class="btn primary" id="bNovoBug">+ Novo bug</button>
+        </div>
+      </div>
+    </div>
+    <ul class="bugs" id="listaBugs"></ul>
+  </section>
+</main>
+
+<!-- bug: novo / editar -->
+<div class="modal-fundo" id="mBug" hidden>
+  <form class="modal form modal-bug" id="fBug" role="dialog" aria-modal="true" aria-labelledby="mBugTit" novalidate>
+    <h3 id="mBugTit">Novo bug</h3>
+    <div>
+      <label class="rot" for="bTitulo">Título</label>
+      <input class="campo" id="bTitulo" maxlength="140" autocomplete="off" placeholder="ex.: Botão de pagar some no iPhone" required>
+    </div>
+    <div class="par">
+      <div><label class="rot" for="bSistema">Sistema</label><select class="campo" id="bSistema"></select></div>
+      <div><label class="rot" for="bResp">Responsável</label><select class="campo" id="bResp"></select></div>
+    </div>
+    <div class="par">
+      <div><label class="rot" for="bSev">Severidade</label><select class="campo" id="bSev"></select></div>
+      <div><label class="rot" for="bStatus">Status</label><select class="campo" id="bStatus"></select></div>
+    </div>
+    <div>
+      <label class="rot" for="bPassos">Passos para reproduzir</label>
+      <textarea class="campo" id="bPassos" rows="4" placeholder="1. Abrir…&#10;2. Clicar em…&#10;3. Ver que…"></textarea>
+    </div>
+    <div class="par">
+      <div><label class="rot" for="bEsperado">Esperado</label><textarea class="campo" id="bEsperado" rows="3"></textarea></div>
+      <div><label class="rot" for="bObtido">Obtido</label><textarea class="campo" id="bObtido" rows="3"></textarea></div>
+    </div>
+    <div class="erro-form" id="bErro" role="alert"></div>
+    <div class="rodape">
+      <button type="button" class="btn danger" id="bExcluir" hidden>Excluir</button>
+      <span class="espaco"></span>
+      <button type="button" class="btn ghost" id="bCancelar">Cancelar</button>
+      <button type="submit" class="btn primary">Salvar bug</button>
+    </div>
+  </form>
+</div>
+
+<!-- confirmação (restaurar, excluir bug, limpar histórico) -->
+<div class="modal-fundo" id="mConf" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="mConfTit" aria-describedby="mConfTxt">
+    <h3 id="mConfTit"></h3>
+    <p class="dim" id="mConfTxt"></p>
+    <div class="rodape">
+      <button type="button" class="btn ghost" id="mConfNao">Cancelar</button>
+      <button type="button" class="btn danger" id="mConfSim">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script src="../base.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

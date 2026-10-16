@@ -282,6 +282,9 @@ function rotear(req) {
   let url;
   try { url = new URL(req.caminho || '/', HOST); }
   catch (e) { return falha(400, 'Caminho inválido', 'Escreva o caminho assim: /api/v1/clientes.'); }
+  // URL completa de outro host não pode responder como se fosse a nossa API
+  if (url.host !== new URL(HOST).host)
+    return falha(400, 'Host desconhecido', `Este console só fala com ${new URL(HOST).host}. Use só o caminho, como /api/v1/clientes.`);
   const caminho = dec(url.pathname);
   const partes = url.pathname.split('/').filter(Boolean).map(dec);
   const m = req.metodo;
@@ -297,7 +300,8 @@ function rotear(req) {
   const negado = autenticar(h('authorization'));
   if (negado) return negado;
 
-  const esq = ESQ[recurso];
+  // hasOwn: sem isso /api/v1/constructor achava o construtor do Object e estourava num 500
+  const esq = Object.hasOwn(ESQ, recurso) ? ESQ[recurso] : null;
   if (!esq) return falha(404, 'Recurso não encontrado', `"${recurso}" não existe. Os recursos são: ${Object.keys(ESQ).join(', ')}.`);
   if (resto.length) return falha(404, 'Rota não encontrada', `${caminho} não existe.`);
   if (COM_CORPO.includes(m)) {
@@ -316,7 +320,7 @@ function rotear(req) {
   const atual = achar(recurso, id);
 
   if (sub !== undefined) {
-    const campoPai = esq.filhos && esq.filhos[sub];
+    const campoPai = esq.filhos && Object.hasOwn(esq.filhos, sub) && esq.filhos[sub];
     if (!campoPai) {
       const ok = esq.filhos ? ' Use: ' + Object.keys(esq.filhos).map(f => `/api/v1/${recurso}/${id}/${f}`).join(', ') + '.' : '';
       return falha(404, 'Rota não encontrada', `${caminho} não existe.${ok}`);
@@ -495,7 +499,7 @@ function validar(rec, corpo, modo) {
   const esq = ESQ[rec], campos = {}, dados = {};
   const parcial = modo === 'atualizar';
   for (const k of Object.keys(corpo))
-    if (!LEITURA.includes(k) && !(esq.extras && k in esq.extras) && !(k in esq.campos))
+    if (!LEITURA.includes(k) && !(esq.extras && Object.hasOwn(esq.extras, k)) && !Object.hasOwn(esq.campos, k))
       campos[k] = 'campo desconhecido neste recurso';
   for (const [k, def] of Object.entries(esq.campos)) {
     const v = corpo[k];

@@ -108,16 +108,30 @@ const NT = (() => {
   }
 
   /* ---------- janela modal ---------- */
+  /* Esc fecha só a janela de cima, e o foco volta para quem a abriu */
+  const abertos = [];
+  function fechar(fundo) {
+    fundo.hidden = true;
+    const i = abertos.findIndex(x => x.fundo === fundo);
+    if (i >= 0) {
+      const { origem } = abertos.splice(i, 1)[0];
+      if (origem && document.contains(origem)) origem.focus();
+    }
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    while (abertos.length && abertos[abertos.length - 1].fundo.hidden) abertos.pop();
+    if (abertos.length) fechar(abertos[abertos.length - 1].fundo);
+  });
   function modal(fundo, abrir = true) {
-    fundo.hidden = !abrir;
-    if (abrir) {
-      const primeiro = fundo.querySelector('input,select,textarea,button');
-      if (primeiro) setTimeout(() => primeiro.focus(), 30);
-      if (!fundo.dataset.ligado) {
-        fundo.dataset.ligado = '1';
-        fundo.addEventListener('click', e => { if (e.target === fundo) fundo.hidden = true; });
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') fundo.hidden = true; });
-      }
+    if (!abrir) { fechar(fundo); return; }
+    fundo.hidden = false;
+    if (!abertos.some(x => x.fundo === fundo)) abertos.push({ fundo, origem: document.activeElement });
+    const primeiro = fundo.querySelector('input,select,textarea,button');
+    if (primeiro) setTimeout(() => primeiro.focus(), 30);
+    if (!fundo.dataset.ligado) {
+      fundo.dataset.ligado = '1';
+      fundo.addEventListener('click', e => { if (e.target === fundo) fechar(fundo); });
     }
   }
 

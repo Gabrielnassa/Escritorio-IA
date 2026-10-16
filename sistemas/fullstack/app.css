@@ -87,7 +87,7 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid var(
 }
 
 /* ---------- cartão ---------- */
-.cartao{position:relative;display:grid;gap:7px;padding:11px 12px 10px;background:var(--panel);border:1px solid var(--line);
+.cartao{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:7px;padding:11px 12px 10px;background:var(--panel);border:1px solid var(--line);
   border-radius:10px;cursor:grab;transition:border-color .15s,box-shadow .15s,opacity .15s,transform .15s}
 .cartao:hover{border-color:var(--line-2);box-shadow:0 8px 22px rgba(0,0,0,.4)}
 .cartao:focus-within{border-color:var(--acc)}
@@ -108,9 +108,9 @@ kbd{font-family:var(--f-mono);font-size:11px;padding:0 5px;border:1px solid var(
 .c-titulo{margin:0;font-family:var(--f-display);font-size:15.5px;line-height:1.25}
 .c-abrir{padding:0;margin:0;border:0;background:none;color:var(--txt);font:inherit;text-align:left;cursor:pointer;overflow-wrap:anywhere}
 .c-abrir:focus-visible{outline-offset:3px;border-radius:4px}
-.c-cliente{margin-top:-4px;font-size:13px;color:var(--txt-dim)}
+.c-cliente{overflow-wrap:anywhere;margin-top:-4px;font-size:13px;color:var(--txt-dim)}
 .c-tags{display:flex;flex-wrap:wrap;gap:4px}
-.tag{font-size:11.5px;padding:1px 7px;border-radius:6px;background:#141b2e;border:1px solid var(--line);color:#aab7d4}
+.tag{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;padding:1px 7px;border-radius:6px;background:#141b2e;border:1px solid var(--line);color:#aab7d4}
 .c-prog{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--txt-dim)}
 .barra{flex:1;height:5px;border-radius:99px;background:#1a2238;overflow:hidden}
 .barra i{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#00b3ff,#2f7bff);transition:width .25s}

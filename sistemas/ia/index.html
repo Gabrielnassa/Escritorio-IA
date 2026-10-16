@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central de Agentes · Nassa Tech</title>
+<link rel="icon" href="../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="nt-top"><div class="nt-emoji">🧠</div><div><h1>Central de Agentes</h1><div class="nt-quem">Nico · Agentes de IA &amp; Automação</div></div><div class="nt-acoes">
+  <button type="button" class="btn mini ghost" id="bRestaurar" title="Volta às automações, ao histórico e à base de conhecimento de exemplo">↺ Restaurar exemplo</button>
+  <button type="button" class="btn primary" id="bNovaTopo">＋ Nova automação</button>
+  <img class="nt-marca" src="../../assets/nassatech-logo-transparente.png" alt="Nassa Tech"></div></header>
+
+<main class="nt-main">
+  <section class="kpis" id="kpis" aria-label="Resumo dos agentes" aria-live="polite"></section>
+
+  <div class="abas" role="tablist" aria-label="Áreas da central">
+    <button type="button" class="aba on" role="tab" data-aba="auto" aria-selected="true">Automações</button>
+    <button type="button" class="aba" role="tab" data-aba="chat" aria-selected="false">Atendente</button>
+    <button type="button" class="aba" role="tab" data-aba="base" aria-selected="false">Base de conhecimento <span class="cont" id="contPend"></span></button>
+  </div>
+
+  <!-- ===== automações: gatilho → condição → ações ===== -->
+  <section class="painel-aba on" data-aba="auto" aria-label="Automações">
+    <div class="barra-filtro">
+      <div class="seg" role="group" aria-label="Filtrar automações">
+        <button type="button" class="on" data-filtro="todas">Todas</button>
+        <button type="button" data-filtro="ligadas">Ligadas</button>
+        <button type="button" data-filtro="desligadas">Desligadas</button>
+      </div>
+      <label class="busca"><span class="sr">Buscar automação</span><input class="campo" id="buscaAuto" type="search" placeholder="Buscar por nome, gatilho ou ação…"></label>
+    </div>
+    <div class="grade c2 lista-auto" id="listaAuto"></div>
+
+    <div class="card hist">
+      <div class="cab-card">
+        <h3>Histórico de execuções <span class="dim pequeno">(últimas 50)</span></h3>
+        <div class="linha">
+          <label class="sr" for="filtroHist">Filtrar histórico</label>
+          <select class="campo mini-campo" id="filtroHist">
+            <option value="">Todos os status</option>
+            <option value="ok">Só sucesso</option>
+            <option value="erro">Só erro</option>
+          </select>
+          <button type="button" class="btn mini ghost" id="bExportHist">⤓ CSV</button>
+          <button type="button" class="btn mini danger" id="bLimparHist">Limpar</button>
+        </div>
+      </div>
+      <div class="rolagem">
+        <table class="tabela">
+          <thead><tr><th>Quando</th><th>Automação</th><th>Status</th><th class="c-opc">Duração</th><th class="c-opc">Passos</th><th><span class="sr">Ações</span></th></tr></thead>
+          <tbody id="corpoHist"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== atendente: playground da Nassa ===== -->
+  <section class="painel-aba" data-aba="chat" aria-label="Atendente virtual">
+    <div class="chat-grade">
+      <div class="card chat-card">
+        <div class="chat-topo">
+          <div class="avatar" aria-hidden="true">N</div>
+          <div><b>Nassa</b><div class="dim pequeno"><span class="ponto ok"></span> atendente virtual · responde em segundos</div></div>
+          <button type="button" class="btn mini ghost" id="bNovaConversa">↻ Nova conversa</button>
+        </div>
+        <div class="mensagens" id="mensagens" role="log" aria-live="polite" aria-label="Conversa com a Nassa"></div>
+        <div class="chips" id="chips" aria-label="Sugestões de pergunta"></div>
+        <form class="envio" id="formChat" autocomplete="off">
+          <label class="sr" for="txtChat">Sua mensagem</label>
+          <input class="campo" id="txtChat" maxlength="400" placeholder="Pergunte algo como um cliente perguntaria…">
+          <button type="submit" class="btn primary">Enviar</button>
+        </form>
+      </div>
+
+      <aside class="lado">
+        <div class="card">
+          <h3>Painel do atendente</h3>
+          <div class="chave-linha"><button type="button" class="chave" id="chDebug" role="switch" aria-checked="false" aria-label="Modo depuração"></button><span><b>Modo depuração</b><br><span class="dim pequeno">Mostra a intenção reconhecida e a confiança embaixo de cada resposta.</span></span></div>
+          <div class="info-bot">
+            <div><span class="dim">Intenções na base</span><b id="infoIntents">0</b></div>
+            <div><span class="dim">Sem resposta</span><b id="infoPend">0</b></div>
+            <div><span class="dim">Confiança mínima</span><b>45%</b></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Última análise</h3>
+          <div id="analise" class="analise"><p class="dim pequeno">Mande uma mensagem para ver como a Nassa pontua cada intenção.</p></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===== base de conhecimento ===== -->
+  <section class="painel-aba" data-aba="base" aria-label="Base de conhecimento">
+    <div class="base-grade">
+      <div class="card">
+        <div class="cab-card">
+          <h3>Intenções <span class="dim pequeno" id="qtdIntents"></span></h3>
+          <div class="linha">
+            <label class="sr" for="buscaIntent">Buscar intenção</label>
+            <input class="campo mini-campo" id="buscaIntent" type="search" placeholder="Buscar…">
+            <button type="button" class="btn mini primary" id="bNovaIntent">＋ Nova intenção</button>
+          </div>
+        </div>
+        <div id="listaIntents" class="lista-intents"></div>
+      </div>
+
+      <div class="col-dir">
+        <div class="card">
+          <h3>Perguntas sem resposta</h3>
+          <p class="dim pequeno topo-p">O que a Nassa não soube responder. Transforme numa intenção para ela aprender.</p>
+          <div id="listaPend"></div>
+        </div>
+        <div class="card">
+          <h3>Testar frase</h3>
+          <form id="formTeste" class="linha teste-form" autocomplete="off">
+            <label class="sr" for="txtTeste">Frase para testar</label>
+            <input class="campo" id="txtTeste" placeholder="Ex.: vcs ficam onde?">
+            <button type="submit" class="btn mini">Testar</button>
+          </form>
+          <div id="resTeste" class="analise"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ===== modal: construtor de automação ===== -->
+<div class="modal-fundo" id="mAuto" hidden>
+  <form class="modal largo" id="formAuto" novalidate role="dialog" aria-modal="true" aria-labelledby="tAuto" autocomplete="off">
+    <h3 id="tAuto">Nova automação</h3>
+    <div class="form">
+      <div><label class="rot" for="aNome">Nome</label><input class="campo" id="aNome" maxlength="80" required placeholder="Ex.: Lead do site → WhatsApp da Duda"></div>
+      <div><label class="rot" for="aGatilho">1. Gatilho — quando isso acontecer…</label><select class="campo" id="aGatilho"></select></div>
+      <div><label class="rot" for="aCond">2. Condição (opcional) — só se…</label><input class="campo" id="aCond" maxlength="120" placeholder="Ex.: orçamento estimado acima de R$ 2.000"></div>
+      <div>
+        <label class="rot" for="aAcaoSel">3. Ações — faça isso, na ordem</label>
+        <div class="linha add-acao"><select class="campo" id="aAcaoSel"></select><button type="button" class="btn" id="bAddAcao">Adicionar</button></div>
+        <ol class="acoes-sel" id="aAcoes"></ol>
+      </div>
+      <div><span class="rot">Prévia</span><div class="fluxo previa" id="aPrevia"></div></div>
+    </div>
+    <p class="erro-form" id="aErro" role="alert"></p>
+    <div class="rodape">
+      <button type="button" class="btn ghost" data-fechar>Cancelar</button>
+      <button type="submit" class="btn primary">Salvar automação</button>
+    </div>
+  </form>
+</div>
+
+<!-- ===== modal: execução / log ===== -->
+<div class="modal-fundo" id="mExec" hidden>
+  <div class="modal largo" role="dialog" aria-modal="true" aria-labelledby="tExec">
+    <h3 id="tExec">Execução</h3>
+    <div class="linha exec-status" id="execStatus"></div>
+    <div class="log" id="execLog" aria-live="polite"></div>
+    <div class="rodape">
+      <button type="button" class="btn" id="bRepetir">▶ Executar de novo</button>
+      <button type="button" class="btn primary" data-fechar>Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== modal: intenção ===== -->
+<div class="modal-fundo" id="mIntent" hidden>
+  <form class="modal largo" id="formIntent" novalidate role="dialog" aria-modal="true" aria-labelledby="tIntent" autocomplete="off">
+    <h3 id="tIntent">Nova intenção</h3>
+    <div class="form">
+      <div><label class="rot" for="iNome">Nome da intenção</label><input class="campo" id="iNome" maxlength="40" required placeholder="Ex.: integração com iFood"></div>
+      <div><label class="rot" for="iPalavras">Palavras-chave (separe por vírgula)</label><textarea class="campo" id="iPalavras" rows="2" maxlength="400" required placeholder="ifood, delivery, integração, pedidos"></textarea></div>
+      <div><label class="rot" for="iResp">Resposta da Nassa</label><textarea class="campo" id="iResp" rows="4" required maxlength="700"></textarea></div>
+      <div><label class="rot" for="iSug">Sugestões de próxima pergunta (uma por linha)</label><textarea class="campo" id="iSug" rows="3" maxlength="400" placeholder="Quanto custa?&#10;Qual o prazo?"></textarea></div>
+    </div>
+    <p class="erro-form" id="iErro" role="alert"></p>
+    <div class="rodape">
+      <button type="button" class="btn ghost" data-fechar>Cancelar</button>
+      <button type="submit" class="btn primary">Salvar intenção</button>
+    </div>
+  </form>
+</div>
+
+<script src="../base.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

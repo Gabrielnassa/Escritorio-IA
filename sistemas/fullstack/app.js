@@ -461,9 +461,11 @@ el.busca.addEventListener('input', () => {
   clearTimeout(tBusca);
   tBusca = setTimeout(() => { filtros.busca = el.busca.value; salvarFiltros(); render(); }, 120);
 });
-el.resp.addEventListener('change', () => { filtros.resp = el.resp.value; salvarFiltros(); render(); });
-el.tipo.addEventListener('change', () => { filtros.tipo = el.tipo.value; salvarFiltros(); render(); });
-function alternarAtrasados() { filtros.atrasados = !filtros.atrasados; salvarFiltros(); render(); }
+// a busca espera 120 ms; outro filtro trocado antes disso leva o texto junto, senão o render apagaria o que foi digitado
+const lerBusca = () => { clearTimeout(tBusca); filtros.busca = el.busca.value; };
+el.resp.addEventListener('change', () => { lerBusca(); filtros.resp = el.resp.value; salvarFiltros(); render(); });
+el.tipo.addEventListener('change', () => { lerBusca(); filtros.tipo = el.tipo.value; salvarFiltros(); render(); });
+function alternarAtrasados() { lerBusca(); filtros.atrasados = !filtros.atrasados; salvarFiltros(); render(); }
 el.atrasados.addEventListener('click', alternarAtrasados);
 el.kpis.addEventListener('click', e => {
   if (!e.target.closest('#kAtrasados')) return;
@@ -749,10 +751,14 @@ function salvarAgora() {
   salvar(); render();
   F.estado.textContent = 'Salvo às ' + NT.hora().slice(0, 5);
 }
-F.form.addEventListener('input', e => { if (e.target.dataset.campo) aplicarCampo(e.target); });
+F.form.addEventListener('input', e => { if (e.target.dataset.campo && atual) aplicarCampo(e.target); });
 F.form.addEventListener('change', e => {
   const c = e.target;
-  if (!c.dataset.campo || ehNovo) return;
+  // o change também chega quando o campo perde o foco ao fechar a janela, e aí já não há projeto aberto
+  if (!c.dataset.campo || !atual) return;
+  // valor negativo ou inválido é guardado como 0: a tela mostra o que ficou salvo
+  if (c.dataset.campo === 'valor') c.value = atual.valor || '';
+  if (ehNovo) return;
   // campo obrigatório que ficou vazio volta ao valor salvo ao sair dele
   if ((c.dataset.campo === 'nome' || c.dataset.campo === 'cliente') && !c.value.trim()) { c.value = atual[c.dataset.campo]; limparErro(c); }
   if (c.dataset.campo === 'tags') c.value = atual.tags.join(', ');

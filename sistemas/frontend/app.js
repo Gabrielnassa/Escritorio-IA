@@ -226,6 +226,9 @@ function paleta(t) {
 const fmt = s => esc(s).replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
 const paragrafos = s => String(s || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean)
   .map(x => '<p>' + esc(x).replace(/\n/g, '<br>') + '</p>').join('');
+// ilustração e ícones são "um emoji": um texto colado ali estouraria o quadro, então ficam só os dois primeiros
+const SEG = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter('pt-BR', { granularity: 'grapheme' }) : null;
+const emoji = s => { s = String(s || '').trim(); return (SEG ? [...SEG.segment(s)].map(x => x.segment) : [...s]).slice(0, 2).join(''); };
 const digitos = s => String(s || '').replace(/\D/g, '');
 // só deixa passar âncora, http(s), mailto e tel — nada de javascript: na página do cliente
 function href(l) {
@@ -249,18 +252,18 @@ const R = {
       .map(s => `<a href="#${s.tipo}">${esc(s.dados.menu)}</a>`).join('');
     const menu = links ? `<nav class="links" id="menu" aria-label="Menu principal">${links}</nav>` : '';
     return `<header class="nav"${a}><div class="cx">
-<a class="marca" href="#topo"><i aria-hidden="true">${esc(iniciais(d.marca).charAt(0))}</i>${esc(d.marca)}</a>
+<a class="marca" href="#topo"><i aria-hidden="true">${esc(iniciais(d.marca).charAt(0))}</i><span>${esc(d.marca)}</span></a>
 ${menu}${d.botao ? `<a class="btn peq" href="${esc(href(d.link))}">${esc(d.botao)}</a>` : ''}${links ? '<button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu">☰</button>' : ''}
 </div></header>
-<section class="hero${d.emoji ? '' : ' so-texto'}" id="topo"${a}><div class="cx">
+<section class="hero${emoji(d.emoji) ? '' : ' so-texto'}" id="topo"${a}><div class="cx">
 <div>${d.selo ? `<span class="selo">${esc(d.selo)}</span>` : ''}<h1>${fmt(d.titulo)}</h1>${d.subtitulo ? `<p class="sub">${esc(d.subtitulo)}</p>` : ''}
 <div class="acoes">${d.botao ? `<a class="btn" href="${esc(href(d.link))}">${esc(d.botao)}</a>` : ''}${d.botao2 ? `<a class="btn sec" href="${esc(href(d.link2))}">${esc(d.botao2)}</a>` : ''}</div></div>
-${d.emoji ? `<div class="arte" aria-hidden="true"><span>${esc(d.emoji)}</span></div>` : ''}
+${emoji(d.emoji) ? `<div class="arte" aria-hidden="true"><span>${esc(emoji(d.emoji))}</span></div>` : ''}
 </div></section>`;
   },
   servicos(d, a, alt) {
     return `<section id="servicos" class="${alt}"${a}><div class="cx">${cab(d)}<div class="grade">
-${(d.itens || []).map(i => `<article class="cartao"><div class="ico" aria-hidden="true">${esc(i.icone)}</div><h3>${esc(i.titulo)}</h3><p>${esc(i.texto)}</p></article>`).join('\n')}
+${(d.itens || []).map(i => `<article class="cartao"><div class="ico" aria-hidden="true">${esc(emoji(i.icone))}</div><h3>${esc(i.titulo)}</h3><p>${esc(i.texto)}</p></article>`).join('\n')}
 </div></div></section>`;
   },
   sobre(d, a, alt) {
@@ -338,6 +341,8 @@ body{margin:0;background:var(--fundo);color:var(--txt);font:17px/1.65 var(--corp
 a{color:var(--dest)}
 h1,h2,h3{font-family:var(--tit);line-height:1.15;margin:0;${f.caixa ? 'text-transform:uppercase;letter-spacing:.01em;font-weight:400' : 'font-weight:800'}}
 h1 em,h2 em{font-style:normal;color:var(--dest)}
+/* palavra enorme (URL, e-mail, nome colado) quebra em vez de alargar a página no celular */
+h1,h2,h3,h4,p,li,summary,blockquote,label{overflow-wrap:anywhere}
 .cx{width:min(1120px,100% - 40px);margin-inline:auto}
 section{padding:84px 0;scroll-margin-top:68px}
 section.alt{background:var(--fundo-2)}
@@ -353,10 +358,14 @@ h2{font-size:clamp(28px,3.6vw,42px)}
 a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--dest);outline-offset:3px}
 .nav{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--fundo) 96%,transparent);border-bottom:1px solid var(--linha)}
 .nav .cx{display:flex;align-items:center;gap:24px;height:68px;position:relative}
+.nav .btn{white-space:nowrap;flex:0 0 auto}
 .marca{display:flex;align-items:center;gap:10px;font-family:var(--tit);font-weight:800;font-size:20px;color:var(--txt);text-decoration:none;white-space:nowrap;min-width:0}
+.marca span{overflow:hidden;text-overflow:ellipsis}
 .marca i{width:34px;height:34px;border-radius:${reto ? '4px' : '10px'};display:grid;place-items:center;background:var(--btn);color:var(--btn-txt);font-style:normal;font-size:17px;flex:0 0 auto}
 .links{display:flex;gap:26px;margin-left:auto}
-.links a{color:var(--dim);text-decoration:none;font-weight:600;font-size:15px}
+.links a{color:var(--dim);text-decoration:none;font-weight:600;font-size:15px;white-space:nowrap}
+.lp-vazio{min-height:100vh;display:grid;place-content:center;gap:6px;padding:24px;text-align:center;color:var(--dim);font-size:16px}
+.lp-vazio b{color:var(--txt);font-size:20px}
 .links a:hover{color:var(--txt)}
 .links+.btn,.marca+.btn{margin-left:auto}
 .links+.btn{margin-left:0}
@@ -495,10 +504,12 @@ function montar(p, previa, sel) {
     const a = previa ? ` data-sec="${esc(s.id)}" data-rot="${esc(TIPOS[s.tipo].nome)}"` : '';
     return R[s.tipo](s.dados || {}, a, alt, ctx, s);
   }).join('\n');
+  // sem nenhuma seção ligada a prévia ficaria em branco, sem dizer por quê
+  const vazio = !ativas.length && previa ? '<div class="lp-vazio"><b>Nenhuma seção na página</b><span>Ligue uma seção na lista do editor para ela aparecer aqui.</span></div>' : '';
   const ct = ativas.find(s => s.tipo === 'contato');
   const z = ct && ct.dados.flutuante && digitos(ct.dados.whatsapp);
   const zap = z ? `\n<a class="zap" href="https://wa.me/${z}" target="_blank" rel="noopener" aria-label="Conversar no WhatsApp">${ICONE_ZAP}</a>` : '';
-  return { css: estilo(p.tema, c, previa), corpo: corpo + zap, titulo: (p.pagina && p.pagina.titulo) || ctx.marca, descricao: (p.pagina && p.pagina.descricao) || '', cor: c.cor, fundo: c.fundo };
+  return { css: estilo(p.tema, c, previa), corpo: vazio + corpo + zap, titulo: (p.pagina && p.pagina.titulo) || ctx.marca, descricao: (p.pagina && p.pagina.descricao) || '', cor: c.cor, fundo: c.fundo };
 }
 
 function documento(p, previa, sel) {
@@ -565,7 +576,11 @@ function semear() {
   D.gravar('projetos', projetos);
 }
 
+// projeto salvo pela metade (storage editado à mão ou de versão antiga) derrubaria o estúdio inteiro: fica de fora
+const projetoOk = p => p && typeof p.id === 'string' && p.tema && typeof p.tema === 'object' && p.pagina && typeof p.pagina === 'object' &&
+  Array.isArray(p.secoes) && p.secoes.length > 0 && p.secoes.every(s => s && TIPOS[s.tipo] && s.dados && typeof s.dados === 'object');
 function carregar() {
+  if (Array.isArray(projetos)) projetos = projetos.filter(projetoOk);
   if (!Array.isArray(projetos) || !projetos.length) semear();
   ui = Object.assign({ aba: 'secoes', disp: 'desktop', vista: 'editar' }, D.ler('ui', {}));
   if (!projetos.some(p => p.id === ui.atual)) { ui.atual = projetos[0].id; ui.secao = null; }
@@ -1006,13 +1021,17 @@ fProj.addEventListener('submit', e => {
 
 /* ---------- topo: exportar, copiar, restaurar ---------- */
 const slug = s => semAcento(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'pagina';
+// página sem seção nenhuma não vale ser publicada: avisa em vez de entregar um HTML em branco
+const semSecao = () => { if (atual().secoes.some(s => s.ativo)) return false; NT.aviso('Ligue ao menos uma seção antes de exportar.'); return true; };
 $('#bExportar').addEventListener('click', () => {
+  if (semSecao()) return;
   const p = atual(), nome = slug(p.cliente + '-' + p.nome) + '.html';
   NT.baixar(nome, documento(p, false), 'text/html;charset=utf-8');
   NT.aviso(`Baixando ${nome} — é só publicar.`);
 });
-$('#bCopiar').addEventListener('click', () => NT.copiar(documento(atual(), false)));
+$('#bCopiar').addEventListener('click', () => { if (!semSecao()) NT.copiar(documento(atual(), false)); });
 $('#bAba').addEventListener('click', () => {
+  if (semSecao()) return;
   const url = URL.createObjectURL(new Blob([documento(atual(), false)], { type: 'text/html;charset=utf-8' }));
   const w = window.open(url, '_blank');
   if (!w) NT.aviso('O navegador bloqueou a nova aba. Use Exportar HTML.');

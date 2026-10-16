@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central de Deploy · Nassa Tech</title>
+<link rel="icon" href="../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="nt-top"><div class="nt-emoji">🚀</div><div><h1>Central de Deploy</h1><div class="nt-quem">Dani · DevOps &amp; Cloud</div></div><div class="nt-acoes">
+  <button type="button" class="btn mini ghost" id="bRestaurar" title="Volta aos deploys e domínios de exemplo">↺ Restaurar<span class="longo">exemplo</span></button>
+  <button type="button" class="btn primary" id="bVerificar">⟳ Verificar agora</button>
+  <img class="nt-marca" src="../../assets/nassatech-logo-transparente.png" alt="Nassa Tech"></div></header>
+
+<main class="nt-main">
+  <section class="kpis" id="kpis" aria-label="Resumo da operação" aria-live="polite"></section>
+
+  <div class="abas" role="tablist" aria-label="Áreas da central">
+    <button type="button" class="aba on" role="tab" data-aba="saude" aria-selected="true">Saúde dos sistemas</button>
+    <button type="button" class="aba" role="tab" data-aba="pipeline" aria-selected="false">Pipeline</button>
+    <button type="button" class="aba" role="tab" data-aba="dominios" aria-selected="false">Domínios &amp; SSL</button>
+  </div>
+
+  <!-- ===== saúde: health check de verdade em cada sistema ===== -->
+  <section class="painel-aba on" data-aba="saude" aria-label="Saúde dos sistemas">
+    <div class="barra-check card">
+      <div class="bc-info">
+        <span class="ponto" id="pontoGeral"></span>
+        <div>
+          <b id="resumoGeral">Ainda não verifiquei</b>
+          <div class="dim pequeno" id="ultimaVerif">Clique em Verificar agora para testar todos os sistemas.</div>
+        </div>
+      </div>
+      <div class="bc-acoes">
+        <label class="chave" for="cAuto">
+          <input type="checkbox" id="cAuto">
+          <span class="trilho" aria-hidden="true"></span>
+          <span>Verificar a cada 60 s</span>
+        </label>
+        <span class="badge" id="contagem" hidden></span>
+      </div>
+    </div>
+
+    <div class="infra" id="infra" aria-label="Escritório"></div>
+
+    <h2 class="titulo-secao">Sistemas da equipe</h2>
+    <div class="grade-sis" id="gradeSis" aria-live="polite"><div class="vazio">Carregando o catálogo…</div></div>
+
+    <div class="card registro">
+      <div class="linha entre">
+        <h3>Registro das verificações</h3>
+        <button type="button" class="btn mini ghost" id="bLimparHist">Limpar histórico</button>
+      </div>
+      <div class="log" id="logChecks" aria-live="off"></div>
+    </div>
+  </section>
+
+  <!-- ===== pipeline de deploy ===== -->
+  <section class="painel-aba" data-aba="pipeline" aria-label="Pipeline de deploy">
+    <div class="pipe">
+      <form class="card form" id="fDeploy" novalidate>
+        <h3>Novo deploy</h3>
+        <div>
+          <label class="rot" for="dProjeto">Projeto</label>
+          <select class="campo" id="dProjeto"></select>
+          <div class="dim pequeno" id="dProjInfo"></div>
+        </div>
+        <fieldset class="amb">
+          <legend class="rot">Ambiente</legend>
+          <label><input type="radio" name="amb" value="homolog" checked><span>Homologação</span></label>
+          <label><input type="radio" name="amb" value="prod"><span>Produção</span></label>
+        </fieldset>
+        <div>
+          <label class="rot" for="dMsg">Mensagem do commit</label>
+          <input class="campo" id="dMsg" maxlength="90" autocomplete="off">
+        </div>
+        <label class="marca"><input type="checkbox" id="dFalha"> Simular teste quebrado (treino de incidente)</label>
+        <div class="linha">
+          <button type="submit" class="btn primary" id="bRodar">▶ Rodar deploy</button>
+          <button type="button" class="btn danger" id="bCancelar" hidden>■ Cancelar</button>
+        </div>
+        <div class="dim pequeno" id="dNoAr"></div>
+      </form>
+
+      <div class="card execucao">
+        <div class="linha entre">
+          <h3 id="exTitulo">Pipeline parado</h3>
+          <span class="badge" id="exStatus">aguardando</span>
+        </div>
+        <ol class="etapas" id="etapas"></ol>
+        <div class="log log-pipe" id="logPipe" aria-live="polite"><span class="dim">Escolha o projeto e clique em Rodar deploy.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="linha entre">
+        <h3>Histórico de deploys</h3>
+        <label class="filtro-hist"><span class="rot">Mostrar</span>
+          <select class="campo" id="hFiltro">
+            <option value="">Todos os projetos</option>
+          </select>
+        </label>
+      </div>
+      <div class="rolagem">
+        <table class="tabela tabela-cartao" id="tHist">
+          <thead><tr><th>Quando</th><th>Projeto</th><th>Ambiente</th><th>Commit</th><th>Status</th><th>Duração</th><th>Quem</th><th><span class="sr">Ações</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="mais" id="hMais" hidden><button type="button" class="btn mini ghost" id="bMais">Mostrar mais</button></div>
+    </div>
+  </section>
+
+  <!-- ===== domínios e certificados dos clientes ===== -->
+  <section class="painel-aba" data-aba="dominios" aria-label="Domínios e SSL">
+    <div class="card">
+      <div class="dom-topo">
+        <div class="dom-busca">
+          <label class="rot" for="domBusca">Buscar</label>
+          <input type="search" class="campo" id="domBusca" placeholder="Domínio, cliente ou registrador" autocomplete="off">
+        </div>
+        <div>
+          <label class="rot" for="domFiltro">Situação</label>
+          <select class="campo" id="domFiltro">
+            <option value="">Todos</option>
+            <option value="atencao">Vencendo em 30 dias</option>
+            <option value="vencido">Vencidos</option>
+            <option value="dns">DNS com problema</option>
+          </select>
+        </div>
+        <button type="button" class="btn primary" id="bNovoDom">+ Novo domínio</button>
+      </div>
+      <div class="rolagem">
+        <table class="tabela tabela-cartao" id="tDom">
+          <thead><tr><th>Domínio</th><th>Cliente</th><th>Registrador</th><th>Domínio vence</th><th>SSL vence</th><th>DNS</th><th><span class="sr">Ações</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="dim pequeno legenda">Amarelo: vence em menos de 30 dias. Vermelho: já venceu. Certificados Let's Encrypt duram 90 dias — renove pelo botão da linha.</p>
+    </div>
+  </section>
+</main>
+
+<!-- domínio: novo / editar -->
+<div class="modal-fundo" id="mDom" hidden>
+  <form class="modal form" id="fDom" role="dialog" aria-modal="true" aria-labelledby="mDomTit" novalidate>
+    <h3 id="mDomTit">Novo domínio</h3>
+    <div class="par">
+      <div><label class="rot" for="fdDominio">Domínio</label><input class="campo" id="fdDominio" placeholder="ex.: sorveteriagelato.com.br" maxlength="120" autocomplete="off" required></div>
+      <div><label class="rot" for="fdCliente">Cliente</label><input class="campo" id="fdCliente" list="lClientes" maxlength="80" autocomplete="off" required></div>
+    </div>
+    <datalist id="lClientes"></datalist>
+    <div class="par">
+      <div><label class="rot" for="fdReg">Registrador</label>
+        <select class="campo" id="fdReg"><option>Registro.br</option><option>Cloudflare</option><option>GoDaddy</option><option>Hostinger</option><option>Locaweb</option><option>HostGator</option></select></div>
+      <div><label class="rot" for="fdEmissor">Emissor do SSL</label>
+        <select class="campo" id="fdEmissor"><option>Let's Encrypt</option><option>Cloudflare</option><option>Sectigo</option><option>DigiCert</option></select></div>
+    </div>
+    <div class="par">
+      <div><label class="rot" for="fdVenc">Vencimento do domínio</label><input type="date" class="campo" id="fdVenc" required></div>
+      <div><label class="rot" for="fdSsl">Vencimento do SSL</label><input type="date" class="campo" id="fdSsl" required></div>
+    </div>
+    <label class="marca"><input type="checkbox" id="fdDns" checked> DNS apontando certo (registros A/CNAME conferidos)</label>
+    <div class="erro-form" id="fdErro" role="alert"></div>
+    <div class="rodape">
+      <button type="button" class="btn ghost" data-fechar>Cancelar</button>
+      <button type="submit" class="btn primary">Salvar</button>
+    </div>
+  </form>
+</div>
+
+<!-- confirmação genérica (deploy em produção, excluir, restaurar) -->
+<div class="modal-fundo" id="mConf" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="mConfTit" aria-describedby="mConfTxt">
+    <h3 id="mConfTit"></h3>
+    <div id="mConfTxt" class="conf-txt"></div>
+    <div class="rodape">
+      <button type="button" class="btn ghost" id="mConfNao">Cancelar</button>
+      <button type="button" class="btn primary" id="mConfSim">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- log guardado de um deploy antigo -->
+<div class="modal-fundo" id="mLog" hidden>
+  <div class="modal modal-log" role="dialog" aria-modal="true" aria-labelledby="mLogTit">
+    <h3 id="mLogTit">Log do deploy</h3>
+    <div class="log" id="mLogTxt"></div>
+    <div class="rodape">
+      <button type="button" class="btn ghost" id="mLogCopiar">Copiar log</button>
+      <button type="button" class="btn primary" data-fechar>Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script src="../base.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
