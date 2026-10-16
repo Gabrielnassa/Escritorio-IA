@@ -1245,5 +1245,22 @@ const FURN = (() => {
     ctx.restore();
   }
 
-  return { items, workSlots, restSlots, meetSlots, drawItem, depth, caneca, TOP };
+  /* ---------- extensões ----------
+     Os arquivos js/decor-*.js (carregados depois deste e antes do app.js)
+     acrescentam móveis sem mexer aqui: registram o desenho de um tipo novo
+     com registrar() e põem as peças no andar com add() e block().       */
+  function registrar(desenhos, alturasCache) {
+    Object.assign(DRAW, desenhos);
+    if (alturasCache) Object.assign(ALTURA_CACHE, alturasCache);
+  }
+  /** tira do andar as peças que casam com o filtro (e devolve quantas) */
+  function remover(filtro) {
+    let n = 0;
+    for (let i = items.length - 1; i >= 0; i--) if (filtro(items[i])) { items.splice(i, 1); n++; }
+    return n;
+  }
+
+  return { items, workSlots, restSlots, meetSlots, drawItem, depth, caneca, TOP,
+           add, block, cadeira, emCamadas, naParede, registrar, remover,
+           faceY, monitor, monitorY, teclado, tecladoY, gabinete, desenho: DRAW };
 })();
