@@ -92,7 +92,7 @@ const FURN = (() => {
       else                { deskY = r.y + 1.9; seat = { x: x + 1.5, y: r.y + 1.20, facing: 's' }; }
 
       const mesa = add({ t: 'deskGamer', id, x, y: deskY, w: 3, d: 1.3,
-                         face: r.face, busy: false, hue, sabor: n % 3 });
+                         face: r.face, busy: false, hue, sabor: n % 3, var: n });
       block(x, deskY, 3, 1.3);
       cadeira(seat, 'chairGamer', hue);
       workSlots.push({ id, room: 'servico', label: 'estação ' + id,
@@ -293,65 +293,20 @@ const FURN = (() => {
 
   const DRAW = {
 
-    /* ================= MESA GAMER =================
-       Suporta mesa no eixo Y (face 'n'/'s') e no eixo X (face 'e'/'w').
-       No eixo X o boneco senta de perfil e a mesa fica ao lado dele.     */
+    /* ================= ESTAÇÃO DOS DEVS =================
+       Mesa regulável de tampo de carvalho claro e pés em T de aço grafite,
+       com calha de cabos; dois monitores num braço articulado, notebook no
+       suporte, teclado e mouse no feltro e as coisas de quem usa a mesa.
+       Tudo isso é fixo e vai para um cache; ao vivo ficam só o conteúdo
+       das telas e a luz delas, e só quando há alguém trabalhando.
+       A mesa corre no eixo X: quem senta fica ao sul ('n', de costas para
+       nós, telas à vista) ou ao norte ('s', de frente, telas de costas). */
     deskGamer(ctx, o, t) {
-      const { x, y, w, d } = o;
-      const neon = NASSA.led(t, o.x + o.y);
-      const eixoX = (o.face === 'e' || o.face === 'w');
-      // a tela só aponta para a câmera quando o boneco está de costas
-      const telaVisivel = (o.face === 'n' || o.face === 'w');
-
-      ISO.shadow(ctx, x + w / 2, y + d / 2, Math.max(w, d) * .55, .28);
-
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      const gp = S(x + w / 2, y + d / 2, 6);
-      ISO.glow(ctx, gp.x, gp.y, 74, neon, o.busy ? .3 : .13);
-      ctx.restore();
-
-      /* estrutura: dois painéis nas pontas + travessa */
-      if (eixoX) {
-        ISO.box(ctx, x + .12, y + .05,      w - .24, .17, 25, 0, '#1c202b');
-        ISO.box(ctx, x + .12, y + d - .22,  w - .24, .17, 25, 0, '#1c202b');
-        ISO.box(ctx, x + .16, y + .22,      .1, d - .44, 14, 6, '#181c26');
-      } else {
-        ISO.box(ctx, x + .05,     y + .12, .17, d - .24, 25, 0, '#1c202b');
-        ISO.box(ctx, x + w - .22, y + .12, .17, d - .24, 25, 0, '#1c202b');
-        ISO.box(ctx, x + .22,     y + .16, w - .44, .1,  14, 6, '#181c26');
-      }
-      ISO.plane(ctx, x - .05, y - .05, w + .1, d + .1, TOP, '#39414f');
-      ISO.plane(ctx, x + .1,  y + .06, w - .2, d - .22, TOP + .1, 'rgba(255,255,255,.028)');
-
-      // fita de LED na borda do tampo virada para a câmera
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      ISO.quad(ctx, [S(x - .05, y + d + .05, 25), S(x + w + .05, y + d + .05, 25),
-                     S(x + w + .05, y + d + .05, 21), S(x - .05, y + d + .05, 21)],
-               ISO.rgba(neon, .68));
-      ctx.restore();
-
-      if (eixoX) {
-        // mesa de lado: monitor no fundo, teclado na beira de quem senta
-        const cy  = y + d / 2;
-        const monX = o.face === 'e' ? x + .55 : x + .2;
-        const tecX = o.face === 'e' ? x + .06 : x + .62;
-        emOrdem([
-          [monX, () => monitorY(ctx, monX, cy - .85, 1.7, telaVisivel, o.busy, neon, t)],
-          [tecX, () => tecladoY(ctx, tecX, cy - .78, neon)],
-          [x + .1,  () => gabinete(ctx, x + .1, y + d - .92, neon, t)],
-          [x + w - .45, () => caneca(ctx, x + w - .35, y + .38, TOP, o.sabor, .85)]
-        ]);
-      } else {
-        const monY = o.face === 'n' ? y + .12 : y + .62;
-        const tecY = o.face === 'n' ? y + .78 : y + .06;
-        const mw = 1.7, mx = x + w / 2 - mw / 2 - .3;
-        emOrdem([
-          [monY,      () => monitor(ctx, mx, monY, mw, telaVisivel, o.busy, neon, t, o)],
-          [tecY,      () => teclado(ctx, x + w / 2 - .95, tecY, neon)],
-          [y + .14,   () => gabinete(ctx, x + w - .68, y + .14, neon, t)],
-          [y + d / 2, () => caneca(ctx, x + .42, y + d / 2, TOP, o.sabor, .85)]
-        ]);
-      }
+      let c = cacheMesaDev.get(o);
+      if (c === undefined) { c = montaCacheMovel(o, mesaDevBase); cacheMesaDev.set(o, c); }
+      if (c) ctx.drawImage(c.cv, c.x, c.y, c.w, c.h);
+      else mesaDevBase(ctx, o);
+      if (o.busy) telasDev(ctx, o, t);
     },
 
     /* ================= MESA DA DIRETORIA ================= */
@@ -1242,6 +1197,293 @@ const FURN = (() => {
     ISO.cyl(ctx, cx, cy, .1, 9, 96, '#e5ebf7');
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const p = S(cx, cy, 70); ISO.glow(ctx, p.x, p.y, 40, color, .22);
+    ctx.restore();
+  }
+
+  /* ===========================================================
+     ESTAÇÃO DOS DEVS — peças da mesa (ver DRAW.deskGamer)
+     Coordenadas locais: u corre na largura da mesa (eixo X) e v sai da
+     borda de quem senta (0) para o fundo (d). Assim a mesma receita
+     serve para as duas fileiras, que se olham.
+     =========================================================== */
+  const cacheMesaDev = new Map();
+  const MESA_DEV = {
+    tampo: '#c8ab84', bordaE: '#a98a63', bordaD: '#8c6f4e',     // carvalho claro
+    aco: '#2c3037', acoClaro: '#3a3f47',                         // pés e calha
+    braco: '#aab1bb', painel: '#15181d', costas: '#2a2e35',      // braço e monitores
+    alu: '#bcc2ca', feltro: '#30333a'
+  };
+
+  function layoutMesaDev(o) {
+    if (o._L) return o._L;
+    const lado = (o.var || 0) % 2;                  // de que lado fica o notebook
+    const mw = .96, mt = mw * 2 + .05;               // dois monitores e o vão
+    const u0 = lado ? .14 : o.w - .14 - mt;
+    const kw = .92, kx = u0 + mt / 2 - kw / 2;
+    const lap = lado ? o.w - .14 - .56 : .14;
+    // zona livre na frente, do lado do notebook: caneca, caderno, planta…
+    const dentro = lado ? kx + kw + .62 : kx - .3;
+    const fora   = lado ? o.w - .3 : .3;
+    return (o._L = { lado, mw, mt, u0, kw, kx, lap, lw: .56, dentro, fora,
+                     uc: u0 + mt / 2, telaZ: 34, telaH: 22 });
+  }
+
+  function mesaDevBase(ctx, o) {
+    const { x, y, w, d } = o;
+    const n = o.face === 'n';
+    const L = layoutMesaDev(o), M = MESA_DEV;
+    const R = (u, v, du, dv) => [x + u, n ? y + d - v - dv : y + v, du, dv];
+    const B = (r, h, z, cor, opt) => ISO.box(ctx, r[0], r[1], r[2], r[3], h, z, cor, opt);
+    const Pl = (r, z, cor, tr) => ISO.plane(ctx, r[0], r[1], r[2], r[3], z, cor, tr);
+    const C = (u, v) => [x + u, n ? y + d - v : y + v];
+    const P = (u, v, z) => { const c = C(u, v); return S(c[0], c[1], z); };
+    const linha = { line: 'rgba(0,0,0,.28)' };
+
+    // sombra de contato: a mesa tem pés, então é um retângulo suave
+    Pl(R(.05, .06, w - .1, d - .12), .3, 'rgba(0,0,0,.18)');
+    ISO.shadow(ctx, x + w / 2, y + d / 2, 1.2, .12);
+
+    /* ---- estrutura sob o tampo: pés em T, colunas telescópicas, travessa,
+       calha de cabos no fundo e o painel de altura na frente ---- */
+    const sob = [];
+    const pe = (u) => () => {
+      B(R(u - .03, .08, .18, d - .16), 2.2, 0, M.aco, linha);
+      B(R(u - .01, d / 2 - .1, .14, .2), 12, 2.2, M.aco, linha);
+      B(R(u + .015, d / 2 - .07, .09, .14), 11.2, 14.2, M.acoClaro, linha);
+    };
+    sob.push([d / 2, .2, pe(.2)]);
+    sob.push([d / 2, w / 2, () => B(R(.34, d / 2 - .04, w - .68, .08), 3, 21.6, M.aco, linha)]);
+    sob.push([d / 2, w - .34, pe(w - .34)]);
+    sob.push([d - .28, w / 2, () => {
+      B(R(.55, d - .42, w - 1.1, .28), 3.6, 19.8, '#24272d', { top: '#121418', line: 'rgba(0,0,0,.3)' });
+      Pl(R(.68, d - .33, w - 1.36, .09), 23.5, '#3a3e46');        // feixe de cabos na calha
+    }]);
+    if (n) sob.push([.05, w - .5, () => {                           // botoeira do ajuste de altura
+      B(R(w - .62, .02, .24, .07), 2.6, 22.4, '#1b1d22', linha);
+      const p1 = P(w - .55, .02, 23.7), p2 = P(w - .47, .02, 23.7);
+      ctx.fillStyle = '#7d8590'; ctx.fillRect(p1.x - .6, p1.y - .6, 1.3, 1.3); ctx.fillRect(p2.x - .6, p2.y - .6, 1.3, 1.3);
+    }]);
+    sob.sort((a, b) => (n ? b[0] - a[0] : a[0] - b[0]) || a[1] - b[1]).forEach(p => p[2]());
+
+    /* ---- tampo ---- */
+    B([x - .03, y - .03, w + .06, d + .06], 2.6, TOP - 2.6, M.bordaE,
+      { top: M.tampo, left: M.bordaE, right: M.bordaD, line: 'rgba(60,40,20,.38)' });
+    for (let i = 0; i < 6; i++)                                     // veio da madeira
+      Pl([x + .04, y + .1 + i * .2 + (i % 2) * .04, w - .08, .016], TOP + .05, 'rgba(120,84,48,.12)');
+
+    /* ---- monitores no braço e notebook, no fundo da mesa ---- */
+    const { mw, u0, uc, telaZ, telaH } = L;
+    const telas = [u0, u0 + mw + .05];
+    const poste = () => {
+      B(R(uc - .07, d - .17, .14, .14), 3, TOP, '#1e2126', linha);  // grampo na borda
+      ISO.cyl(ctx, ...C(uc, d - .1), .04, 30, TOP + 3, M.braco);
+    };
+    const braco = () => {
+      B(R(u0 + mw / 2, d - .22, mw + .05, .05), 2.4, 47, M.braco, { line: 'rgba(0,0,0,.2)' });
+      B(R(uc - .03, d - .17, .06, .07), 2.4, 47, M.braco, { line: 'rgba(0,0,0,.2)' });
+    };
+    const vesa = () => telas.forEach(u => B(R(u + mw / 2 - .08, d - .245, .16, .025), 10, 40, '#22252b', linha));
+    const painel = (u) => () => {
+      B(R(u, d - .3, mw, .055), telaH, telaZ, n ? M.painel : M.costas,
+        { top: '#33373f', line: 'rgba(0,0,0,.42)' });
+      if (n) {
+        // tela desligada: vidro escuro com um reflexo leve
+        faceY(ctx, x + u + .025, y + .3, mw - .05, telaZ + telaH - 1, (c, len) => {
+          c.fillStyle = '#07090d'; c.fillRect(0, 0, len, telaH - 3.4);
+          c.fillStyle = 'rgba(160,190,230,.05)';
+          c.beginPath(); c.moveTo(len * .5, 0); c.lineTo(len * .78, 0); c.lineTo(len * .42, telaH - 3.4);
+          c.lineTo(len * .14, telaH - 3.4); c.closePath(); c.fill();
+          c.fillStyle = '#2b3038'; c.fillRect(len / 2 - 2, telaH - 2.5, 4, .9);   // logo no queixo
+        });
+      } else {
+        faceY(ctx, x + u, y + d - .245, mw, telaZ + telaH, (c, len) => {
+          c.fillStyle = 'rgba(255,255,255,.05)'; c.fillRect(0, 0, len, 1);
+          c.fillStyle = 'rgba(0,0,0,.16)';
+          for (let i = 0; i < 5; i++) c.fillRect(len * .3 + i * len * .1, 3, len * .05, 1.2);   // respiro
+        });
+      }
+    };
+    const notebook = () => {
+      const { lap, lw } = L;
+      B(R(lap + .1, .68, lw - .2, .38), 5, TOP, '#9aa1aa', { top: '#b3b9c1', line: 'rgba(0,0,0,.25)' });   // suporte
+      const tampa = () => {
+        B(R(lap, 1.08, lw, .035), 15, TOP + 10, M.alu, { top: '#d3d8de', line: 'rgba(0,0,0,.3)' });
+        if (n) faceY(ctx, x + lap + .03, y + d - 1.08, lw - .06, TOP + 24, (c, len) => {
+          c.fillStyle = '#080a0e'; c.fillRect(0, 0, len, 12);
+        });
+        else faceY(ctx, x + lap, y + 1.115, lw, TOP + 25, (c, len) => {
+          c.fillStyle = 'rgba(255,255,255,.55)';
+          c.beginPath(); c.arc(len / 2, 6.5, 1.6, 0, 7); c.fill();
+        });
+      };
+      const base = () => {
+        ISO.quad(ctx, [P(lap, .6, TOP + 5), P(lap + lw, .6, TOP + 5),
+                       P(lap + lw, 1.08, TOP + 10), P(lap, 1.08, TOP + 10)], n ? '#c3c8cf' : '#8a919a', 'rgba(0,0,0,.25)');
+        if (n) {
+          ISO.quad(ctx, [P(lap + .05, .74, TOP + 6.5), P(lap + lw - .05, .74, TOP + 6.5),
+                         P(lap + lw - .05, 1.02, TOP + 9.4), P(lap + .05, 1.02, TOP + 9.4)], '#2c2f35');
+          ISO.quad(ctx, [P(lap, .6, TOP + 5), P(lap + lw, .6, TOP + 5),
+                         P(lap + lw, .6, TOP + 3.8), P(lap, .6, TOP + 3.8)], '#8d949d');
+        }
+      };
+      if (n) { tampa(); base(); } else { base(); tampa(); }
+    };
+
+    /* ---- frente: feltro, teclado, mouse e os objetos ---- */
+    const { kx, kw } = L;
+    const frente = [];
+    frente.push([kx + kw / 2, () => {
+      B(R(kx, .23, kw, .26), 1.6, TOP + .2, '#c5cad2', { top: '#e2e5e9', line: 'rgba(0,0,0,.16)' });
+      for (let i = 0; i < 4; i++) Pl(R(kx + .05, .27 + i * .055, kw - .1, .013), TOP + 1.85, 'rgba(88,96,108,.4)');
+    }]);
+    frente.push([kx + kw + .2, () => ISO.cyl(ctx, ...C(kx + kw + .2, .35), .062, 2.4, TOP + .2, '#e3e6ea')]);
+    const variante = (o.var || 0) % 4;
+    const obj = {
+      caneca: (u) => canecaDev(ctx, ...C(u, .33), (o.var || 0) % 3),
+      caderno: (u) => {
+        B(R(u - .2, .14, .4, .3), 1.6, TOP, ['#26313f', '#3a3e45', '#7a5c3e'][(o.var || 0) % 3],
+          { top: ['#2f3c4d', '#464a52', '#8c6b48'][(o.var || 0) % 3], line: 'rgba(0,0,0,.3)' });
+        B(R(u - .16, .36, .3, .025), 1.2, TOP + 1.6, '#e7e9ec', { line: 'rgba(0,0,0,.15)' });   // caneta
+      },
+      celular: (u) => B(R(u - .06, .16, .12, .24), .9, TOP, '#121418', { top: '#1d2633', line: 'rgba(0,0,0,.4)' }),
+      planta: (u) => suculenta(ctx, ...C(u, .3)),
+      garrafa: (u) => {
+        ISO.cyl(ctx, ...C(u, .3), .055, 15, TOP, '#9fb2c2');
+        ISO.cyl(ctx, ...C(u, .3), .04, 3, TOP + 15, '#2a2e35');
+      }
+    };
+    const par = [['caderno', 'caneca'], ['celular', 'caneca'], ['planta', 'caderno'], ['garrafa', 'celular']][variante];
+    frente.push([L.fora, () => obj[par[0]](L.fora)]);
+    frente.push([L.dentro, () => obj[par[1]](L.dentro)]);
+
+    if (n) {
+      // fundo primeiro: braço, monitores e notebook; depois a frente
+      poste(); braco(); telas.forEach(u => painel(u)()); notebook();
+      Pl(R(kx - .12, .13, kw + .55, .5), TOP + .15, M.feltro, 'rgba(0,0,0,.3)');
+      frente.sort((a, b) => a[0] - b[0]).forEach(p => p[1]());
+    } else {
+      // de frente para nós: o fundo da mesa é o lado da câmera
+      Pl(R(kx - .12, .13, kw + .55, .5), TOP + .15, M.feltro, 'rgba(0,0,0,.3)');
+      frente.sort((a, b) => a[0] - b[0]).forEach(p => p[1]());
+      notebook(); telas.forEach(u => painel(u)()); vesa(); braco(); poste();
+    }
+  }
+
+  /** caneca da mesa do dev: branca, grafite ou no ciano da marca */
+  function canecaDev(ctx, cx, cy, k) {
+    const cor = ['#eceef1', '#3a3f47', '#1aa6e6'][k];
+    ISO.cyl(ctx, cx, cy, .085, 10, TOP, cor);
+    ISO.cyl(ctx, cx, cy, .068, 1, TOP + 9, '#3b2418');
+    const p = S(cx + .1, cy, TOP + 5.5);
+    ctx.save(); ctx.strokeStyle = ISO.shade(cor, -.12); ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(p.x + 1, p.y, 2.2, -1.3, 1.3); ctx.stroke(); ctx.restore();
+  }
+
+  /** suculenta num vasinho de cerâmica branca */
+  function suculenta(ctx, cx, cy) {
+    ISO.cyl(ctx, cx, cy, .08, 6, TOP, '#e9e6df');
+    const p = S(cx, cy, TOP + 6);
+    const folhas = [[-3.2, -1.5, '#5e9b62'], [3, -1.2, '#4f8a55'], [0, -3.4, '#6fae70'],
+                    [-1.6, -.2, '#5a9660'], [1.8, -.4, '#679f66'], [0, -1.6, '#7dbb7a']];
+    for (const [dx, dy, c] of folhas) {
+      ctx.fillStyle = c;
+      ctx.beginPath(); ctx.ellipse(p.x + dx, p.y + dy, 2.4, 1.6, dx * .2, 0, 7); ctx.fill();
+    }
+  }
+
+  /* conteúdo das telas da estação, ao vivo: editor de código, um segundo
+     monitor que muda de mesa para mesa e o chat no notebook             */
+  const CODIGO = [
+    [0, 9, '#c792ea', 12, '#82aaff', 8, '#a6accd'], [1, 7, '#c792ea', 14, '#a6accd'],
+    [1, 10, '#82aaff', 6, '#c3e88d', 9, '#a6accd'], [2, 16, '#a6accd', 7, '#f78c6c'],
+    [2, 6, '#c792ea', 11, '#c3e88d'], [1, 4, '#a6accd'], [0, 13, '#5c6773'],
+    [0, 8, '#c792ea', 9, '#82aaff', 5, '#a6accd'], [1, 12, '#4fc3f7', 10, '#a6accd'],
+    [2, 9, '#a6accd', 6, '#c3e88d', 4, '#a6accd'], [1, 5, '#c792ea', 8, '#f78c6c'], [0, 3, '#a6accd']
+  ];
+  function telasDev(ctx, o, t) {
+    if (o.face !== 'n') {
+      // telas de costas: só a luz delas no rosto de quem trabalha
+      const g = S(o.x + 1.5, o.y - .7, 56);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ISO.glow(ctx, g.x, g.y, 26, '#7cc4ff', .06);
+      ctx.restore();
+      return;
+    }
+    const L = layoutMesaDev(o);
+    const { x, y } = o;
+    const H = L.telaH - 3.4, topo = L.telaZ + L.telaH - 1;
+    const passo = Math.floor(t * .8 + (o.var || 0) * 1.7);
+    // monitor 1: editor
+    faceY(ctx, x + L.u0 + .025, y + .3, L.mw - .05, topo, (c, len) => {
+      c.fillStyle = '#0e1117'; c.fillRect(0, 0, len, H);
+      c.fillStyle = '#161b22'; c.fillRect(0, 0, 8, H); c.fillRect(0, 0, len, 2);
+      c.fillStyle = '#00b3ff'; c.fillRect(10, 0, 12, 2);
+      let fimX = 12, fimY = 4;
+      for (let i = 0; i < 6; i++) {
+        const s = CODIGO[(passo + i) % CODIGO.length];
+        let xx = 12 + s[0] * 4;
+        const yy = 3.6 + i * 2.25;
+        c.fillStyle = 'rgba(120,130,150,.35)'; c.fillRect(3, yy, 2.4, 1);
+        for (let j = 1; j < s.length; j += 2) { c.fillStyle = s[j + 1]; c.fillRect(xx, yy, s[j] * .9, 1.05); xx += s[j] * .9 + 1.6; }
+        fimX = xx; fimY = yy;
+      }
+      if ((t * 2.2 | 0) % 2) { c.fillStyle = '#e6edf3'; c.fillRect(fimX - .8, fimY - .3, .8, 1.7); }
+    });
+    // monitor 2: terminal, prévia do site ou painel de métricas
+    const tipo = (o.var || 0) % 3;
+    faceY(ctx, x + L.u0 + L.mw + .075, y + .3, L.mw - .05, topo, (c, len) => {
+      if (tipo === 0) {
+        c.fillStyle = '#0b0d10'; c.fillRect(0, 0, len, H);
+        const p2 = Math.floor(t * 1.6 + (o.var || 0));
+        for (let i = 0; i < 6; i++) {
+          const k = (p2 + i) * 7 % 11;
+          c.fillStyle = k % 4 === 0 ? '#3fb950' : 'rgba(150,160,175,.7)';
+          c.fillRect(3, 2 + i * 2.3, 2, 1);
+          c.fillStyle = 'rgba(150,160,175,.55)'; c.fillRect(7, 2 + i * 2.3, 12 + k * 2.6, 1);
+        }
+        c.fillStyle = '#58a6ff'; c.fillRect(3, 2 + 6 * 2.3, 3, 1.1);
+        if ((t * 2 | 0) % 2) { c.fillStyle = '#e6edf3'; c.fillRect(8, 1.7 + 6 * 2.3, 1, 1.6); }
+      } else if (tipo === 1) {
+        c.fillStyle = '#111620'; c.fillRect(0, 0, len, H);
+        c.fillStyle = '#1e2532'; c.fillRect(0, 0, len, 2.4);
+        ['#ff5f57', '#febc2e', '#28c840'].forEach((k, i) => { c.fillStyle = k; c.fillRect(2 + i * 2.4, .7, 1.2, 1.1); });
+        c.fillStyle = '#00b3ff'; c.fillRect(5, 4.5, len * .42, 2);
+        c.fillStyle = 'rgba(220,228,240,.5)'; c.fillRect(5, 7.8, len * .55, 1); c.fillRect(5, 9.4, len * .35, 1);
+        for (let i = 0; i < 3; i++) {
+          const real = Math.floor(t * .5) % 3 === i;
+          c.fillStyle = real ? '#2a3a52' : '#1c2433'; c.fillRect(5 + i * (len - 10) / 3, 11.6, (len - 10) / 3 - 2, 5.6);
+        }
+      } else {
+        c.fillStyle = '#0f141c'; c.fillRect(0, 0, len, H);
+        for (let i = 0; i < 3; i++) {
+          c.fillStyle = '#18202c'; c.fillRect(3 + i * (len - 4) / 3, 2, (len - 4) / 3 - 2, 4);
+          c.fillStyle = ['#00b3ff', '#3fb950', '#c4b8ff'][i]; c.fillRect(5 + i * (len - 4) / 3, 3.4, 6, 1.2);
+        }
+        c.strokeStyle = '#00b3ff'; c.lineWidth = .9;
+        c.beginPath();
+        for (let i = 0; i <= 12; i++) {
+          const px = 3 + i * (len - 6) / 12;
+          const py = 13.5 - 3.2 * Math.sin(i * .9 + t * .6 + (o.var || 0)) - i * .25;
+          if (i) c.lineTo(px, py); else c.moveTo(px, py);
+        }
+        c.stroke();
+      }
+    });
+    // notebook: o chat da equipe
+    faceY(ctx, x + L.lap + .03, y + o.d - 1.08, L.lw - .06, TOP + 24, (c, len) => {
+      c.fillStyle = '#14171d'; c.fillRect(0, 0, len, 12);
+      c.fillStyle = '#1d2230'; c.fillRect(0, 0, len * .3, 12);
+      const p3 = Math.floor(t * .4 + (o.var || 0) * 2);
+      for (let i = 0; i < 4; i++) {
+        c.fillStyle = ['#00b3ff', '#c4b8ff', '#3fb950', '#f2b84b'][(p3 + i) % 4];
+        c.fillRect(len * .3 + 2, 1.5 + i * 2.6, 1.4, 1.4);
+        c.fillStyle = 'rgba(200,208,222,.5)'; c.fillRect(len * .3 + 5, 1.8 + i * 2.6, 6 + ((p3 + i) * 5 % 9), .9);
+      }
+    });
+    // a luz das telas
+    const g = S(x + L.uc, y + .36, L.telaZ + 10);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ISO.glow(ctx, g.x, g.y, 56, '#5aaeff', .1);
     ctx.restore();
   }
 
