@@ -331,24 +331,18 @@ const WORLD = (() => {
     c.restore();
   }
 
-  function drawFloor(ctx, t) {
+  /** o piso cru, em cache. A luz do andar (decor-luz.js) parte dele para
+      montar o piso já iluminado; sem ela, drawFloor copia este mesmo. */
+  function pisoBase() {
     if (!pisoCache) montaPiso();
-    ctx.drawImage(pisoCache.cv, pisoCache.x, pisoCache.y);
+    return pisoCache;
+  }
 
-    // luz da cidade entrando pela fachada + LED da marca refletido no piso
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    const luzDia = 1 - NASSA.noite();
-    for (let x = ROOMS.servico.x1; x <= ROOMS.servico.x2; x += 7) {
-      const p = ISO.toScreen(x, 1.5);
-      ISO.glow(ctx, p.x, p.y, 120, NASSA.led(t, x), .06);
-      if (luzDia > .05) ISO.glow(ctx, p.x, p.y + 30, 150, '#cfe3ff', .05 * luzDia);
-    }
-    for (let y = 2; y <= 8; y += 5) {
-      const p = ISO.toScreen(1.5, y);
-      if (luzDia > .05) ISO.glow(ctx, p.x, p.y, 130, '#ffe9c8', .06 * luzDia);
-    }
-    ctx.restore();
+  function drawFloor(ctx) {
+    // a luz da fachada e das luminárias saiu daqui: os brilhos soltos por
+    // quadro viraram o mapa de luz pré-pintado do decor-luz.js
+    const p = pisoBase();
+    ctx.drawImage(p.cv, p.x, p.y);
   }
 
 
@@ -436,6 +430,10 @@ const WORLD = (() => {
     });
   }
 
+  /* LED da marca em tom sóbrio: o ciano/azul puxado para um branco frio.
+     Saturado e forte, ele deixava o andar com cara de fliperama.       */
+  const ledSobrio = (t, k) => NASSA.mix(NASSA.led(t, k), '#d9ecf5', .38);
+
   /* ---- uma parede ---- */
   function drawWallTile(ctx, x, y, t, rgbOn, zoom) {
     // afastado, o vidro fumê da divisória some em menos de um pixel
@@ -444,7 +442,7 @@ const WORLD = (() => {
     const room = ROOMS[roomOf[idx(x, y)]] || ROOMS.corredor;
     const h    = occ ? PARAPET : WALL_H;
     const semLed = SEM_LED(room.id);
-    const corLed = (k) => NASSA.led(t, k);
+    const corLed = (k) => ledSobrio(t, k);
 
     const showLeft  = !isWall(x, y + 1);   // face virada para +y
     const showRight = !isWall(x + 1, y);   // face virada para +x
@@ -487,17 +485,17 @@ const WORLD = (() => {
       }
       ISO.quad(ctx, f.pts, g);
 
-      // rodapé com fita de LED
+      // rodapé com fita de LED: fina e discreta, só um friso de luz
       if (rgbOn && !semLed) {
         const neon = corLed(x + y);
         const strip = [
           f.pts[3], f.pts[2],
-          { x: f.pts[2].x, y: f.pts[2].y - 5 },
-          { x: f.pts[3].x, y: f.pts[3].y - 5 }
+          { x: f.pts[2].x, y: f.pts[2].y - 3 },
+          { x: f.pts[3].x, y: f.pts[3].y - 3 }
         ];
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        ISO.quad(ctx, strip, ISO.rgba(neon, .55));
+        ISO.quad(ctx, strip, ISO.rgba(neon, .26));
         ctx.restore();
       }
     }
@@ -517,17 +515,24 @@ const WORLD = (() => {
         ISO.quad(ctx, top, ISO.rgba('#9fc4ff', .085));
         ISO.quad(ctx, top, null, ISO.rgba('#bcd8ff', .12));
       }
-      ISO.plane(ctx, x, y, 1, 1, WALL_H, ISO.rgba(room.accent, rgbOn ? .16 : .08));
+      // tampa do vidro: aresta de vidro incolor, não mais pintada da cor da sala
+      ISO.plane(ctx, x, y, 1, 1, WALL_H, 'rgba(200,218,238,.09)');
     }
 
-    // trilho de LED no topo da parede (menos na sala de jogos)
-    if (rgbOn && !semLed) {
+    // perfil de LED no topo da parede (menos na sala de jogos). Era a tampa
+    // inteira acesa em neon, e de longe a planta toda virava um letreiro;
+    // agora é só uma linha fina na aresta da frente, como um perfil embutido
+    if (rgbOn && !semLed && (showLeft || showRight)) {
       const neon = corLed(x + y);
+      const a = P(x, y + 1, WALL_H), b = P(x + 1, y + 1, WALL_H), c = P(x + 1, y, WALL_H);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      // a fita já brilha sozinha; um glow radial por tile custava mais
-      // área pintada que a tela inteira, várias vezes por quadro
-      ISO.plane(ctx, x + .02, y + .02, .96, .96, WALL_H + 2, ISO.rgba(neon, externa ? .3 : .38));
+      ctx.strokeStyle = ISO.rgba(neon, externa ? .3 : .4);
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      if (showLeft) { ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); } else ctx.moveTo(b.x, b.y);
+      if (showRight) ctx.lineTo(c.x, c.y);
+      ctx.stroke();
       ctx.restore();
     }
 
@@ -564,20 +569,20 @@ const WORLD = (() => {
     const d = DOORS.find(d => d.x === x && d.y === y);
     if (!d) return;
     if (SEM_LED(roomAt(x, y + (d.o === 'h' ? 1 : 0)))) return;
-    const neon = NASSA.led(t, x + y);
+    const neon = ledSobrio(t, x + y);
     const P = ISO.toScreen;
     const h = 96;
 
-    // batentes laterais
+    // friso de luz na verga da porta, no mesmo tom sóbrio das paredes
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     if (d.o === 'h') {
-      ISO.quad(ctx, [P(x, y+1, h), P(x+1, y+1, h), P(x+1, y+1, h-4), P(x, y+1, h-4)], ISO.rgba(neon, .65));
+      ISO.quad(ctx, [P(x, y+1, h), P(x+1, y+1, h), P(x+1, y+1, h-3), P(x, y+1, h-3)], ISO.rgba(neon, .4));
     } else {
-      ISO.quad(ctx, [P(x+1, y, h), P(x+1, y+1, h), P(x+1, y+1, h-4), P(x+1, y, h-4)], ISO.rgba(neon, .65));
+      ISO.quad(ctx, [P(x+1, y, h), P(x+1, y+1, h), P(x+1, y+1, h-3), P(x+1, y, h-3)], ISO.rgba(neon, .4));
     }
     const c = ISO.toScreen(x + .5, y + .5, 30);
-    ISO.glow(ctx, c.x, c.y, 62, neon, .18);
+    ISO.glow(ctx, c.x, c.y, 62, neon, .06);
     ctx.restore();
   }
 
@@ -945,6 +950,6 @@ const WORLD = (() => {
     SIGNS, signDepth,
     kindAt, roomAt, isWall, walkable, setBlocked, wallOccludes,
     drawFloor, drawWallTile, drawDoorTile, drawSigns, drawDecals, drawRoomLabels,
-    wallFace, material, pontoNaPlaca, LAJE
+    wallFace, material, pontoNaPlaca, LAJE, pisoBase
   };
 })();
