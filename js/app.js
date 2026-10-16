@@ -410,9 +410,15 @@ for (let y = 0; y < WORLD.H; y++) {
     else if (k === WORLD.DOOR) staticDraw.push({ k: x + y + 0.4, t: 'door', x, y, bb: caixaTile(x, y, 110) });
   }
 }
-for (const o of FURN.items) staticDraw.push({ k: FURN.depth(o), t: 'furn', o, bb: caixaMovel(o) });
+// com a luz do andar (decor-luz.js), tapetes e nomes das salas já vêm
+// assados no piso iluminado: desenhá-los de novo apagaria a luz sobre eles
+const LUZ_ON = typeof LUZ !== 'undefined';
+for (const o of FURN.items) {
+  if (LUZ_ON && LUZ.noChao(o)) continue;
+  staticDraw.push({ k: FURN.depth(o), t: 'furn', o, bb: caixaMovel(o) });
+}
 // nomes das salas no piso: depois dos tapetes (k = -1), antes de todo o resto
-staticDraw.push({ k: -0.5, t: 'rotulos' });
+if (!(LUZ_ON && LUZ.ROTULOS_NO_PISO)) staticDraw.push({ k: -0.5, t: 'rotulos' });
 staticDraw.sort((a, b) => a.k - b.k);
 
 /* ===========================================================
@@ -453,7 +459,8 @@ function frame(now) {
   ctx.setTransform(dpr * cam.z, 0, 0, dpr * cam.z,
                    dpr * (cw / 2 + cam.x * cam.z), dpr * (ch / 2 + cam.y * cam.z));
 
-  WORLD.drawFloor(ctx, opts.rgb ? t : 0);
+  // piso com a luz do andar já pintada (mapa de luz em cache, ver decor-luz.js)
+  if (LUZ_ON) LUZ.piso(ctx); else WORLD.drawFloor(ctx);
   WORLD.drawDecals(ctx, t);
 
   // retângulo visível, em coordenadas de mundo

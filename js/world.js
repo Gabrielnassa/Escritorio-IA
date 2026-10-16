@@ -190,8 +190,8 @@ const WORLD = (() => {
 
   /* ---- chão ----
      O piso é fixo: 1632 losangos por quadro era desperdício puro. Ele é
-     pintado uma vez num canvas próprio e depois só copiado; só o brilho
-     RGB refletido continua sendo calculado a cada quadro.                */
+     pintado uma vez num canvas próprio e depois só copiado. A luz do
+     andar (decor-luz.js) parte desta mesma cópia.                        */
   let pisoCache = null;
   function montaPiso() {
     const x0 = ISO.toScreen(0, H - 1).x - ISO.TW;
