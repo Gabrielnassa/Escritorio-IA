@@ -140,6 +140,7 @@ const WORLD = (() => {
 
   /* ---------- painéis nas paredes altas ---------- */
   const SIGNS = [
+    { o: 'n', x: 1,  y: 0,  len: 3,  kind: 'palmeiras' }, // chefe: camisa do Palmeiras, era Parmalat
     { o: 'n', x: 5,  y: 0,  len: 5,  kind: 'bmw'      },  // chefe: o quadro da BMW
     { o: 'w', x: 0,  y: 9,  len: 5,  kind: 'quadro'   },  // chefe: quadro de ideias
     { o: 'w', x: 0,  y: 14, len: 4,  kind: 'eventos'  },  // chefe: próximos eventos
@@ -603,12 +604,14 @@ const WORLD = (() => {
     else if (s.kind === 'bmw')      signBmw(c, len, rgbOn);
     else if (s.kind === 'logo')     signLogo(c, len, rgbOn);
     else if (s.kind === 'pipeline') signPipeline(c, len, t, rgbOn);
+    else if (s.kind === 'palmeiras') signPalmeiras(c, len);
     else if (s.kind === 'logoParede') signLogoParede(c, len);
   }
 
   /* placas paradas só repintam quando algo nelas muda */
   const PLACA_FIXA = {
     bmw:  () => BMW.pronto ? 'ok' : 'carregando',
+    palmeiras: () => fontePalmeiras() ? 'ok' : 'carregando',
     logo: () => NASSA.pronto(NASSA.logo) ? 'ok' : 'carregando',
     logoParede: () => NASSA.pronto(NASSA.logo) ? 'ok' : 'carregando'
   };
@@ -871,6 +874,164 @@ const WORLD = (() => {
       c.fillText(msg.length > 30 ? msg.slice(0, 29) + '…' : msg, x0 + 38, ry);
     }
     void rgbOn;
+  }
+
+  /* ---- camisa do Palmeiras da era Parmalat (1993), em quadro de memorabilia ----
+     Caixa funda de moldura preta com filete dourado, fundo de suede, a
+     camisa aberta com gola em V branca, o "Parmalat" azul no oval branco,
+     o escudo e a plaqueta de latão. Na tela o eixo u da parede encolhe
+     para ~0,56 (o plano está de lado): tudo é desenhado num espaço
+     esticado em u por K, senão a camisa sairia magra e as letras finas. */
+  function signPalmeiras(c, len) {
+    const K = 1.78, cx = len / 2 - 4;
+    const fx = -44, fy = 8, fw = 88, fh = 72;             // caixa externa
+    const ix = fx + 4.5, iy = fy + 4.5, iw = fw - 9, ih = fh - 9;
+    c.save();
+    c.translate(cx, 0); c.scale(K, 1);
+
+    // luz de galeria lavando a parede e o quadro (igual à da BMW)
+    const gl = c.createRadialGradient(0, fy - 4, 3, 0, fy + 28, 64);
+    gl.addColorStop(0, 'rgba(255,226,170,.30)'); gl.addColorStop(1, 'rgba(255,226,170,0)');
+    c.fillStyle = gl; c.fillRect(-cx / K, 0, len / K, WALL_H);
+
+    // moldura: caixa preta funda, com sombra na parede
+    c.save();
+    c.shadowColor = 'rgba(0,0,0,.55)'; c.shadowBlur = 8; c.shadowOffsetX = 4; c.shadowOffsetY = 5;
+    c.fillStyle = '#121316'; ISO.rrect(c, fx, fy, fw, fh, 1.6); c.fill();
+    c.restore();
+    const gm = c.createLinearGradient(0, fy, 0, fy + fh);
+    gm.addColorStop(0, '#34363b'); gm.addColorStop(1, '#0c0d0f');
+    c.strokeStyle = gm; c.lineWidth = 1.1;
+    ISO.rrect(c, fx + .6, fy + .6, fw - 1.2, fh - 1.2, 1.2); c.stroke();
+    c.strokeStyle = '#b39a5c'; c.lineWidth = .7;
+    c.strokeRect(ix - .9, iy - .9, iw + 1.8, ih + 1.8);
+
+    // fundo de suede claro; a borda de cima da caixa faz sombra nele
+    c.fillStyle = '#e2ded5'; c.fillRect(ix, iy, iw, ih);
+    const gs = c.createLinearGradient(0, iy, 0, iy + 8);
+    gs.addColorStop(0, 'rgba(40,30,20,.42)'); gs.addColorStop(1, 'rgba(40,30,20,0)');
+    c.fillStyle = gs; c.fillRect(ix, iy, iw, 8);
+    const gL = c.createLinearGradient(ix, 0, ix + 4, 0);
+    gL.addColorStop(0, 'rgba(40,30,20,.22)'); gL.addColorStop(1, 'rgba(40,30,20,0)');
+    c.fillStyle = gL; c.fillRect(ix, iy, 4, ih);
+    // laterais internas da caixa que a câmera enxerga: a esquerda e o fundo
+    c.fillStyle = '#26272b';
+    c.beginPath(); c.moveTo(ix, iy); c.lineTo(ix + 2.2, iy + 2.2); c.lineTo(ix + 2.2, iy + ih - 2.2); c.lineTo(ix, iy + ih); c.closePath(); c.fill();
+    c.fillStyle = '#3a3b40';
+    c.beginPath(); c.moveTo(ix, iy + ih); c.lineTo(ix + 2.2, iy + ih - 2.2); c.lineTo(ix + iw - 2.2, iy + ih - 2.2); c.lineTo(ix + iw, iy + ih); c.closePath(); c.fill();
+
+    /* ---- a camisa, aberta com as mangas para os lados ---- */
+    c.save();
+    c.translate(0, 39.4); c.scale(1.1, 1.1); c.translate(0, -38.4);
+    const corpo = new Path2D();
+    corpo.moveTo(-6.2, 18.8);
+    corpo.lineTo(-14.5, 20.8); corpo.lineTo(-29.5, 27.8);           // ombro e manga
+    corpo.lineTo(-25.6, 36.2); corpo.lineTo(-16.2, 32.6);           // punho e axila
+    corpo.lineTo(-16.4, 58.2); corpo.quadraticCurveTo(0, 59.6, 16.4, 58.2);
+    corpo.lineTo(16.2, 32.6); corpo.lineTo(25.6, 36.2);
+    corpo.lineTo(29.5, 27.8); corpo.lineTo(14.5, 20.8);
+    corpo.lineTo(6.2, 18.8); corpo.lineTo(0, 25.8);                 // decote em V
+    corpo.closePath();
+
+    const gv = c.createLinearGradient(-30, 0, 30, 0);
+    gv.addColorStop(0, '#0a5b2d'); gv.addColorStop(.32, '#0f7a3c');
+    gv.addColorStop(.55, '#138a47'); gv.addColorStop(1, '#09562a');
+    c.save();
+    c.shadowColor = 'rgba(30,20,10,.42)'; c.shadowBlur = 5; c.shadowOffsetY = 3;
+    c.fillStyle = gv; c.fill(corpo);
+    c.restore();
+    c.save();
+    c.clip(corpo);
+    // luz de cima e barra um pouco mais escura
+    const gt = c.createLinearGradient(0, 19, 0, 59);
+    gt.addColorStop(0, 'rgba(255,255,255,.10)'); gt.addColorStop(.5, 'rgba(255,255,255,0)');
+    gt.addColorStop(1, 'rgba(0,0,0,.16)');
+    c.fillStyle = gt; c.fillRect(-30, 18, 60, 42);
+    // dobras do tecido preso no fundo
+    c.strokeStyle = 'rgba(0,45,18,.38)'; c.lineWidth = .55;
+    c.beginPath();
+    c.moveTo(-16, 33.5); c.quadraticCurveTo(-11, 37, -9.5, 45);
+    c.moveTo(16, 33.5);  c.quadraticCurveTo(11, 37, 9.5, 45);
+    c.moveTo(-7.5, 50);  c.lineTo(-8.6, 58.5);
+    c.moveTo(6.5, 51);   c.lineTo(7.6, 58.5);
+    c.stroke();
+    // punhos brancos
+    c.fillStyle = '#f3f2ec';
+    c.beginPath(); c.moveTo(-29.5, 27.8); c.lineTo(-25.6, 36.2); c.lineTo(-23.5, 35.3); c.lineTo(-27.4, 26.9); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(29.5, 27.8);  c.lineTo(25.6, 36.2);  c.lineTo(23.5, 35.3);  c.lineTo(27.4, 26.9);  c.closePath(); c.fill();
+    c.restore();
+
+    // por dentro do V aparece o avesso das costas, e a gola branca atrás
+    c.fillStyle = '#08451f';
+    c.beginPath(); c.moveTo(-6.2, 18.8); c.lineTo(6.2, 18.8); c.lineTo(0, 25.8); c.closePath(); c.fill();
+    c.strokeStyle = '#f3f2ec'; c.lineWidth = 1.3; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(-6.2, 18.9); c.quadraticCurveTo(0, 17.2, 6.2, 18.9); c.stroke();
+    c.lineWidth = 2; c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(-6.6, 18.7); c.lineTo(0, 26.2); c.lineTo(6.6, 18.7); c.stroke();
+    c.strokeStyle = 'rgba(0,60,25,.55)'; c.lineWidth = .4;
+    c.beginPath(); c.moveTo(-5.2, 19.6); c.lineTo(0, 25.1); c.lineTo(5.2, 19.6); c.stroke();
+
+    // escudo do Palmeiras no peito esquerdo de quem veste
+    c.fillStyle = '#f3f2ec'; c.beginPath(); c.arc(8.6, 28.4, 3.2, 0, 7); c.fill();
+    c.strokeStyle = '#0b6e36'; c.lineWidth = .9; c.beginPath(); c.arc(8.6, 28.4, 2.5, 0, 7); c.stroke();
+    c.fillStyle = '#0b6e36'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = "800 3.4px 'Barlow', sans-serif"; c.fillText('P', 8.6, 28.6);
+    // marca do fornecedor no outro lado
+    c.fillStyle = 'rgba(243,242,236,.9)';
+    c.beginPath(); c.moveTo(-10.4, 27.4); c.lineTo(-6.8, 27.4); c.lineTo(-7.6, 29.4); c.lineTo(-9.6, 29.4); c.closePath(); c.fill();
+
+    // patrocínio: "Parmalat" azul no oval branco, grande no peito
+    c.fillStyle = '#f7f6f0'; c.beginPath(); c.ellipse(0, 41.6, 12.9, 5.5, 0, 0, 7); c.fill();
+    c.strokeStyle = '#1f4fa8'; c.lineWidth = .5; c.beginPath(); c.ellipse(0, 41.6, 11.9, 4.6, 0, 0, 7); c.stroke();
+    c.fillStyle = '#1b3f98';
+    let tam = 6.6;
+    c.font = `italic 800 ${tam}px 'Barlow', sans-serif`;
+    while (tam > 4 && c.measureText('Parmalat').width > 20.5) { tam -= .2; c.font = `italic 800 ${tam}px 'Barlow', sans-serif`; }
+    c.fillText('Parmalat', 0, 41.9);
+
+    // alfinetes que prendem a camisa no fundo
+    c.fillStyle = 'rgba(200,205,212,.85)';
+    for (const [px, py] of [[-14, 21.6], [14, 21.6], [-15.4, 57.4], [15.4, 57.4]]) {
+      c.beginPath(); c.arc(px, py, .55, 0, 7); c.fill();
+    }
+    c.restore();
+
+    // plaqueta de latão
+    const pw = 66, ph = 6.8, px0 = -pw / 2, py0 = 65;
+    const gp = c.createLinearGradient(0, py0, 0, py0 + ph);
+    gp.addColorStop(0, '#d2b46a'); gp.addColorStop(1, '#9a7b3f');
+    c.fillStyle = 'rgba(0,0,0,.3)'; c.fillRect(px0 + .4, py0 + .8, pw, ph);
+    c.fillStyle = gp; c.fillRect(px0, py0, pw, ph);
+    c.strokeStyle = 'rgba(70,52,20,.7)'; c.lineWidth = .4; c.strokeRect(px0 + .2, py0 + .2, pw - .4, ph - .4);
+    c.fillStyle = '#2b2214'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    let tp = 4.6;
+    c.font = `700 ${tp}px 'Barlow Semi Condensed', sans-serif`;
+    c.letterSpacing = '.25px';
+    while (tp > 3 && c.measureText('PALMEIRAS · ERA PARMALAT · 1993').width > pw - 5) {
+      tp -= .1; c.font = `700 ${tp}px 'Barlow Semi Condensed', sans-serif`;
+    }
+    c.fillText('PALMEIRAS · ERA PARMALAT · 1993', 0, py0 + ph / 2 + .3);
+    c.letterSpacing = '0px';
+
+    // vidro: um reflexo diagonal leve
+    c.save();
+    c.beginPath(); c.rect(ix, iy, iw, ih); c.clip();
+    c.fillStyle = 'rgba(255,255,255,.09)';
+    c.beginPath(); c.moveTo(ix + iw * .60, iy); c.lineTo(ix + iw * .76, iy);
+    c.lineTo(ix + iw * .50, iy + ih); c.lineTo(ix + iw * .34, iy + ih); c.closePath(); c.fill();
+    c.restore();
+
+    // luminária de quadro em latão
+    c.fillStyle = '#6e5d33'; c.fillRect(-1.2, 5, 2.4, fy - 5);
+    c.fillStyle = '#b39a5c'; ISO.rrect(c, -26, 1.6, 52, 4, 2); c.fill();
+    c.fillStyle = 'rgba(255,240,200,.55)'; c.fillRect(-24.5, 2, 49, .8);
+    c.restore();
+  }
+  /* a plaqueta tem texto: a placa (fixa) se repinta quando a fonte chegar */
+  let fonteOkPalmeiras = false;
+  function fontePalmeiras() {
+    return fonteOkPalmeiras || (fonteOkPalmeiras = !document.fonts ||
+      (document.fonts.check("700 10px 'Barlow Semi Condensed'") && document.fonts.check("700 10px 'Barlow'")));
   }
 
   /* ---- logo em metal escovado no painel de feltro, com luz de parede quente ---- */
