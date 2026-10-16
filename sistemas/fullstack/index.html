@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestor de Projetos · Nassa Tech</title>
+<link rel="icon" href="../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="nt-top"><div class="nt-emoji">⚙️</div><div><h1>Gestor de Projetos</h1><div class="nt-quem">Rafa · Full-stack</div></div><div class="nt-acoes">
+  <button type="button" class="btn mini ghost" id="bRestaurar" title="Volta aos projetos de exemplo"><span>↺ Restaurar<span class="longo"> exemplo</span></span></button>
+  <button type="button" class="btn mini ghost" id="bCsv" title="Baixa a lista de projetos para abrir no Excel"><span>⬇ Exportar<span class="longo"> CSV</span></span></button>
+  <button type="button" class="btn primary" id="bNovo">+ Novo projeto</button>
+  <img class="nt-marca" src="../../assets/nassatech-logo-transparente.png" alt="Nassa Tech"></div></header>
+
+<main class="nt-main">
+  <section class="kpis" id="kpis" aria-label="Resumo dos projetos"></section>
+
+  <div class="abas" role="tablist" aria-label="Visões dos projetos">
+    <button type="button" class="aba on" role="tab" data-aba="quadro" id="abaQuadro" aria-controls="pQuadro" aria-selected="true">Quadro</button>
+    <button type="button" class="aba" role="tab" data-aba="tempo" id="abaTempo" aria-controls="pTempo" aria-selected="false">Linha do tempo</button>
+  </div>
+
+  <!-- filtros valem para as duas visões -->
+  <section class="filtros card" aria-label="Filtros">
+    <div class="f-busca">
+      <label class="rot" for="fBusca">Buscar</label>
+      <input type="search" class="campo" id="fBusca" placeholder="Projeto, cliente, tag ou tarefa" autocomplete="off">
+    </div>
+    <div>
+      <label class="rot" for="fResp">Responsável</label>
+      <select class="campo" id="fResp"></select>
+    </div>
+    <div>
+      <label class="rot" for="fTipo">Tipo</label>
+      <select class="campo" id="fTipo"></select>
+    </div>
+    <div class="f-chave">
+      <button type="button" class="chave" id="fAtrasados" aria-pressed="false"><span class="chave-trilho" aria-hidden="true"></span>Só atrasados</button>
+    </div>
+    <div class="f-info">
+      <span id="fConta" class="dim" aria-live="polite"></span>
+      <button type="button" class="btn mini ghost" id="fLimpar">Limpar filtros</button>
+    </div>
+  </section>
+
+  <div class="painel-aba on" data-aba="quadro" id="pQuadro" role="tabpanel" aria-labelledby="abaQuadro">
+    <div class="atalhos" id="atalhos" role="group" aria-label="Ir para a coluna"></div>
+    <div class="quadro" id="quadro"></div>
+    <p class="dica dim">Arraste os cartões entre as colunas. No celular ou pelo teclado, use o botão <b>⇄</b> do cartão — ou, com o cartão em foco, <kbd>Alt</kbd> + <kbd>←</kbd> <kbd>→</kbd> muda de coluna e <kbd>Alt</kbd> + <kbd>↑</kbd> <kbd>↓</kbd> muda a ordem.</p>
+  </div>
+
+  <div class="painel-aba" data-aba="tempo" id="pTempo" role="tabpanel" aria-labelledby="abaTempo">
+    <section class="card tempo-card" aria-labelledby="tTempo">
+      <div class="tempo-topo">
+        <div>
+          <h2 id="tTempo">Próximos 60 dias</h2>
+          <p class="dim pequeno" id="tempoResumo"></p>
+        </div>
+        <div class="legenda" aria-label="Legenda">
+          <span><i class="lg lg-backlog"></i>Backlog</span>
+          <span><i class="lg lg-dev"></i>Em desenvolvimento</span>
+          <span><i class="lg lg-revisao"></i>Revisão</span>
+          <span><i class="lg lg-atraso"></i>Atrasado</span>
+        </div>
+      </div>
+      <div class="rolagem tl-rolagem" id="tempo"></div>
+      <p class="dim pequeno tl-nota">Cada barra vai do início ao prazo do projeto; a parte mais clara é o que já foi feito do checklist. Projetos entregues não aparecem aqui. Clique num projeto para abrir.</p>
+    </section>
+  </div>
+</main>
+
+<!-- projeto: criar e editar -->
+<div class="modal-fundo" id="mProj" hidden>
+  <div class="modal modal-proj" role="dialog" aria-modal="true" aria-labelledby="mTit">
+    <div class="m-topo">
+      <div>
+        <h3 id="mTit">Editar projeto</h3>
+        <span class="dim pequeno" id="mEstado" aria-live="polite"></span>
+      </div>
+      <button type="button" class="btn mini ghost m-x" id="mX" aria-label="Fechar">✕</button>
+    </div>
+
+    <div class="m-corpo">
+      <form class="form m-campos" id="fProj" novalidate>
+        <div>
+          <label class="rot" for="cNome">Projeto</label>
+          <input class="campo" id="cNome" data-campo="nome" maxlength="80" autocomplete="off" placeholder="Ex.: Site institucional com blog" required>
+        </div>
+        <div class="par">
+          <div>
+            <label class="rot" for="cCliente">Cliente</label>
+            <input class="campo" id="cCliente" data-campo="cliente" list="listaClientes" maxlength="60" autocomplete="off" placeholder="Ex.: Padaria Pão de Mel" required>
+            <datalist id="listaClientes"></datalist>
+          </div>
+          <div>
+            <label class="rot" for="cTipo">Tipo</label>
+            <select class="campo" id="cTipo" data-campo="tipo"></select>
+          </div>
+        </div>
+        <div class="par">
+          <div>
+            <label class="rot" for="cResp">Responsável</label>
+            <select class="campo" id="cResp" data-campo="resp"></select>
+          </div>
+          <div>
+            <label class="rot" for="cPrio">Prioridade</label>
+            <select class="campo" id="cPrio" data-campo="prio"></select>
+          </div>
+        </div>
+        <div class="par">
+          <div>
+            <label class="rot" for="cValor">Valor (R$)</label>
+            <input class="campo" id="cValor" data-campo="valor" type="number" min="0" step="100" inputmode="decimal" placeholder="0">
+          </div>
+          <div>
+            <label class="rot" for="cColuna">Etapa</label>
+            <select class="campo" id="cColuna" data-campo="coluna"></select>
+          </div>
+        </div>
+        <div class="par">
+          <div>
+            <label class="rot" for="cInicio">Início</label>
+            <input class="campo" id="cInicio" data-campo="inicio" type="date" required>
+          </div>
+          <div>
+            <label class="rot" for="cPrazo">Prazo de entrega</label>
+            <input class="campo" id="cPrazo" data-campo="prazo" type="date" required>
+          </div>
+        </div>
+        <div>
+          <label class="rot" for="cTags">Tags <span class="dim">(separe por vírgula)</span></label>
+          <input class="campo" id="cTags" data-campo="tags" maxlength="120" autocomplete="off" placeholder="Ex.: seo, whatsapp, pix">
+        </div>
+        <div>
+          <label class="rot" for="cDesc">Escopo combinado</label>
+          <textarea class="campo" id="cDesc" data-campo="desc" rows="3" maxlength="600" placeholder="O que foi vendido ao cliente, em poucas linhas"></textarea>
+        </div>
+        <p class="erro" id="mErro" role="alert" hidden></p>
+      </form>
+
+      <div class="m-lado">
+        <section class="bloco" aria-labelledby="tTarefas">
+          <div class="bloco-topo">
+            <h4 id="tTarefas">Checklist</h4>
+            <span class="dim pequeno" id="tarefasConta"></span>
+          </div>
+          <div class="barra grande" aria-hidden="true"><i id="tarefasBarra"></i></div>
+          <ul class="tarefas" id="listaTarefas"></ul>
+          <form class="add-linha" id="fTarefa">
+            <label class="sr" for="novaTarefa">Nova tarefa</label>
+            <input class="campo" id="novaTarefa" maxlength="120" autocomplete="off" placeholder="Nova tarefa — Enter adiciona">
+            <button type="submit" class="btn">Adicionar</button>
+          </form>
+        </section>
+
+        <section class="bloco" aria-labelledby="tComent">
+          <div class="bloco-topo">
+            <h4 id="tComent">Comentários e histórico</h4>
+            <span class="dim pequeno" id="comentConta"></span>
+          </div>
+          <form class="coment-form" id="fComent">
+            <div class="coment-linha">
+              <label class="rot" for="cAutor">Quem escreve</label>
+              <select class="campo" id="cAutor"></select>
+            </div>
+            <label class="sr" for="cTexto">Comentário</label>
+            <textarea class="campo" id="cTexto" rows="2" maxlength="600" placeholder="Escreva um comentário — Ctrl + Enter envia"></textarea>
+            <button type="submit" class="btn mini primary">Comentar</button>
+          </form>
+          <ol class="comentarios" id="listaComent"></ol>
+        </section>
+      </div>
+    </div>
+
+    <div class="rodape m-rodape">
+      <button type="button" class="btn danger" id="mExcluir">Excluir projeto</button>
+      <span class="espaco"></span>
+      <button type="button" class="btn ghost" id="mCancelar">Cancelar</button>
+      <button type="button" class="btn primary" id="mOk">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- confirmação no visual da casa, em vez do confirm() do navegador -->
+<div class="modal-fundo m-conf" id="mConf" hidden>
+  <div class="modal modal-conf" role="alertdialog" aria-modal="true" aria-labelledby="confTit" aria-describedby="confTxt">
+    <h3 id="confTit"></h3>
+    <p id="confTxt" class="dim"></p>
+    <div class="rodape">
+      <button type="button" class="btn ghost" id="confNao">Cancelar</button>
+      <button type="button" class="btn danger" id="confSim">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- menu de mover: o caminho para quem não arrasta (toque e teclado) -->
+<div class="menu-mover" id="menuMover" role="menu" aria-label="Mover projeto" hidden></div>
+
+<script src="../base.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

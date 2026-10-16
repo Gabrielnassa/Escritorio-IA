@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laboratório Mobile · Nassa Tech</title>
+<link rel="icon" href="../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="nt-top"><div class="nt-emoji">📱</div><div><h1>Laboratório Mobile</h1><div class="nt-quem">Bia · Mobile · React Native</div></div><div class="nt-acoes">
+  <button type="button" class="btn mini ghost" id="bRestaurar" title="Volta o app, as builds e as lojas para o exemplo">↺ Restaurar exemplo</button>
+  <button type="button" class="btn mini" id="bRelatorio" title="Baixa um resumo das builds e das lojas em .txt">⬇ Relatório</button>
+  <img class="nt-marca" src="../../assets/nassatech-logo-transparente.png" alt="Nassa Tech"></div></header>
+
+<main class="nt-main">
+  <div class="lab">
+
+    <!-- bancada: o celular de teste com o app da clínica rodando -->
+    <section class="bancada" aria-label="Aparelho de teste">
+      <div class="controles">
+        <div class="seg" role="group" aria-label="Aparelho">
+          <button type="button" data-aparelho="iphone" aria-pressed="true">iPhone</button>
+          <button type="button" data-aparelho="android" aria-pressed="false">Android</button>
+        </div>
+        <div class="seg" role="group" aria-label="Tema do app">
+          <button type="button" data-tema="claro" aria-pressed="true">☀ Claro</button>
+          <button type="button" data-tema="escuro" aria-pressed="false">☾ Escuro</button>
+        </div>
+      </div>
+
+      <div class="celular" id="celular" data-aparelho="iphone">
+        <span class="lat l1" aria-hidden="true"></span><span class="lat l2" aria-hidden="true"></span>
+        <span class="lat l3" aria-hidden="true"></span><span class="lat l4" aria-hidden="true"></span>
+        <div class="tela" id="tela" data-tema="claro">
+          <div class="ilha" aria-hidden="true"></div>
+          <div class="furo" aria-hidden="true"></div>
+          <div class="status" aria-hidden="true">
+            <span class="st-hora" id="stHora">--:--</span>
+            <span class="st-icones">
+              <svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx=".8"/><rect x="5" y="5.5" width="3" height="6.5" rx=".8"/><rect x="10" y="3" width="3" height="9" rx=".8"/><rect x="15" y="0" width="3" height="12" rx=".8"/></svg>
+              <svg viewBox="0 0 16 12"><path d="M8 2.2c2.6 0 5 1 6.8 2.7l1.2-1.3A11.5 11.5 0 0 0 0 3.6l1.2 1.3A9.7 9.7 0 0 1 8 2.2zm0 3.6c1.6 0 3.1.6 4.2 1.7l1.2-1.3a7.8 7.8 0 0 0-10.8 0l1.2 1.3A6 6 0 0 1 8 5.8zm0 3.6c.7 0 1.3.3 1.7.7L8 12 6.3 10.1c.4-.4 1-.7 1.7-.7z"/></svg>
+              <span class="st-pct">86%</span>
+              <svg class="st-bat" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".45"/><rect x="2.5" y="2.5" width="17" height="8" rx="2"/><rect x="24.6" y="4.3" width="1.8" height="4.4" rx=".9" opacity=".45"/></svg>
+            </span>
+          </div>
+          <header class="app-topo" id="appTopo"></header>
+          <div class="app-corpo" id="appCorpo"></div>
+          <nav class="app-tabs" id="appTabs" aria-label="Menu do app da clínica"></nav>
+          <div class="nav-android">
+            <button type="button" data-acao="nav-voltar" aria-label="Voltar"><svg viewBox="0 0 24 24"><path d="M16 5v14L6 12z"/></svg></button>
+            <button type="button" data-acao="nav-inicio" aria-label="Tela inicial do app"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg></button>
+            <button type="button" data-acao="nav-recentes" aria-label="Apps recentes"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+          </div>
+          <button type="button" class="home-ind" data-acao="nav-inicio" aria-label="Voltar ao início do app"></button>
+          <button type="button" class="push" id="push" hidden></button>
+          <div class="folha-fundo" id="folhaFundo" hidden>
+            <div class="folha" id="folha" role="dialog" aria-modal="true" aria-label="Janela do app"></div>
+          </div>
+          <div class="a-toast" id="aToast" role="status"></div>
+          <div class="splash" id="splash" aria-hidden="true"></div>
+        </div>
+      </div>
+      <div class="legenda">
+        <p id="legenda"></p>
+        <button type="button" class="btn mini ghost" id="bReiniciar" title="Fecha e abre o app de novo">↻ Reiniciar app</button>
+      </div>
+    </section>
+
+    <!-- painel: builds, lojas e push de teste -->
+    <section class="painel" aria-label="Builds e publicação">
+      <div class="kpis" id="kpis"></div>
+
+      <div class="abas" role="tablist" aria-label="Partes do laboratório">
+        <button type="button" class="aba on" role="tab" data-aba="builds" aria-selected="true">Builds</button>
+        <button type="button" class="aba" role="tab" data-aba="lojas" aria-selected="false">Publicação nas lojas</button>
+        <button type="button" class="aba" role="tab" data-aba="push" aria-selected="false">Push de teste</button>
+      </div>
+
+      <!-- builds -->
+      <div class="painel-aba on" data-aba="builds" role="tabpanel">
+        <div class="card">
+          <h2>Gerar build</h2>
+          <div class="nova-build">
+            <div>
+              <span class="rot" id="rPlat">Plataforma</span>
+              <div class="seg" role="group" aria-labelledby="rPlat" id="segPlat">
+                <button type="button" data-plat="android" aria-pressed="true">Android · .aab</button>
+                <button type="button" data-plat="ios" aria-pressed="false">iOS · .ipa</button>
+              </div>
+            </div>
+            <div class="nb-versao">
+              <label class="rot" for="selVersao">Versão</label>
+              <select class="campo" id="selVersao"></select>
+            </div>
+            <button type="button" class="btn primary" id="bGerar">▶ Gerar build</button>
+          </div>
+          <div id="buildAtual"></div>
+        </div>
+
+        <div class="card bloco">
+          <div class="lista-topo">
+            <h2>Histórico de builds</h2>
+            <div class="seg" role="group" aria-label="Filtrar builds" id="segFiltro">
+              <button type="button" data-filtro="todas" aria-pressed="true">Todas</button>
+              <button type="button" data-filtro="android" aria-pressed="false">Android</button>
+              <button type="button" data-filtro="ios" aria-pressed="false">iOS</button>
+            </div>
+          </div>
+          <div class="lista-builds" id="listaBuilds"></div>
+        </div>
+      </div>
+
+      <!-- lojas -->
+      <div class="painel-aba" data-aba="lojas" role="tabpanel">
+        <p class="intro dim">Marque o que já foi entregue em cada loja. O envio para revisão só libera com o checklist completo e uma build escolhida.</p>
+        <div class="grade c2 lojas" id="lojas"></div>
+      </div>
+
+      <!-- push -->
+      <div class="painel-aba" data-aba="push" role="tabpanel">
+        <div class="grade c2">
+          <form class="card form" id="fPush" novalidate>
+            <h2>Mandar notificação para o aparelho</h2>
+            <div>
+              <label class="rot" for="pModelo">Modelo pronto</label>
+              <select class="campo" id="pModelo"></select>
+            </div>
+            <div>
+              <label class="rot" for="pTitulo">Título <span class="conta" id="cTitulo"></span></label>
+              <input class="campo" id="pTitulo" maxlength="50" autocomplete="off" required>
+            </div>
+            <div>
+              <label class="rot" for="pMsg">Mensagem <span class="conta" id="cMsg"></span></label>
+              <textarea class="campo" id="pMsg" maxlength="150" rows="3" required></textarea>
+            </div>
+            <div>
+              <label class="rot" for="pAbrir">Ao tocar, abrir</label>
+              <select class="campo" id="pAbrir">
+                <option value="inicio">Início</option>
+                <option value="agendar">Agendar</option>
+                <option value="consultas">Minhas consultas</option>
+                <option value="perfil">Perfil</option>
+              </select>
+            </div>
+            <p class="erro" id="pErro" role="alert" hidden></p>
+            <div class="linha">
+              <button type="submit" class="btn primary">Enviar para o aparelho</button>
+              <small class="dim" id="pDestino"></small>
+            </div>
+          </form>
+          <div class="card">
+            <div class="lista-topo">
+              <h2>Enviadas</h2>
+              <button type="button" class="btn mini ghost" id="bLimparPush">Limpar histórico</button>
+            </div>
+            <div class="lista-push" id="listaPush"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- confirmação genérica -->
+<div class="modal-fundo" id="mConf" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mConfTit">
+    <h3 id="mConfTit"></h3>
+    <p class="dim" id="mConfTxt"></p>
+    <div class="rodape">
+      <button type="button" class="btn ghost" id="mConfNao">Cancelar</button>
+      <button type="button" class="btn danger" id="mConfSim">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- log de uma build -->
+<div class="modal-fundo" id="mLog" hidden>
+  <div class="modal larga" role="dialog" aria-modal="true" aria-labelledby="mLogTit">
+    <h3 id="mLogTit"></h3>
+    <div class="log" id="mLogTxt"></div>
+    <div class="rodape">
+      <button type="button" class="btn ghost" id="mLogFechar">Fechar</button>
+      <button type="button" class="btn" id="mLogBaixar">⬇ Baixar log</button>
+    </div>
+  </div>
+</div>
+
+<script src="../base.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
