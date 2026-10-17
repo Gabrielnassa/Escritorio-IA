@@ -172,6 +172,9 @@ const AVATAR = (() => {
     const hy  = tTop - 20 + nod;
     const cx  = mirror * 1.2;
 
+    // cabelo comprido de frente: o painel de trás vai ANTES da cabeça,
+    // senão ele cobria o rosto inteiro (de costas continua por cima)
+    if (!back) cabeloAtras(ctx, look, cx, hy);
     rr(ctx, cx - 4, tTop - 4, 8, 5, 2, skinD, OUT);
     rr(ctx, cx - 10.5, hy, 21, 21, 8, look.skin, OUT, 1.6);
     ctx.save(); ISO.rrect(ctx, cx - 10.5, hy, 21, 21, 8); ctx.clip();
@@ -260,6 +263,13 @@ const AVATAR = (() => {
   }
 
   /* ---------- cabelo ---------- */
+  /** painel de trás do cabelo comprido (longo, chanel), visto de frente */
+  function cabeloAtras(ctx, look, cx, hy) {
+    const cD = ISO.shade(look.hair, -.22), L = cx - 10.5, W = 21;
+    if (look.style === 'longo')  rr(ctx, L - 2, hy + 2, W + 4, 24, 7, cD, OUT, 1.4);
+    if (look.style === 'chanel') rr(ctx, L - 2, hy + 1, W + 4, 15, 7, cD, OUT, 1.4);
+  }
+
   function drawHair(ctx, look, cx, hy, mirror, back) {
     const c = look.hair, cD = ISO.shade(c, -.22), cL = ISO.shade(c, .16);
     const L = cx - 10.5, W = 21;
@@ -322,11 +332,11 @@ const AVATAR = (() => {
         ctx.strokeStyle = OUT; ctx.lineWidth = 1.2; ctx.stroke(); break;
 
       case 'longo':
-        rr(ctx, L - 2, hy + 2, W + 4, 24, 7, cD, OUT, 1.4);
+        if (back) rr(ctx, L - 2, hy + 2, W + 4, 24, 7, cD, OUT, 1.4);
         rr(ctx, L - 1.4, hy - 4, W + 2.8, 13, 6.5, c, OUT, 1.5); break;
 
       case 'chanel':
-        rr(ctx, L - 2, hy + 1, W + 4, 15, 7, cD, OUT, 1.4);
+        if (back) rr(ctx, L - 2, hy + 1, W + 4, 15, 7, cD, OUT, 1.4);
         rr(ctx, L - 1.6, hy - 3.6, W + 3.2, 12, 6, c, OUT, 1.5); break;
 
       case 'rabo':
