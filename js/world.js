@@ -872,7 +872,9 @@ const WORLD = (() => {
   /* tamanho do quadro da BMW na parede (px de parede): ~3/4 da parede, com
      respiro em volta, em vez de ocupar a altura toda. O clique (pontoNaPlaca)
      usa a mesma caixa. Formato ≈ o da foto recortada no carro (2,6 : 1).  */
-  const QUADRO_BMW = { w: 190, h: 73, y: 16 };
+  // mesma altura e mesmo topo do quadro da camisa do Palmeiras (fy 8, fh 72),
+  // para os dois ficarem alinhados na parede
+  const QUADRO_BMW = { w: 190, h: 72, y: 8 };
   function signBmw(c, len, rgbOn) {
     const { w, h } = QUADRO_BMW, x0 = (len - w) / 2, y0 = QUADRO_BMW.y;
     // luminária de galeria (latão) e a luz lavando o quadro
@@ -881,9 +883,9 @@ const WORLD = (() => {
     c.fillStyle = gl; c.fillRect(0, 0, len, WALL_H);
     BMW.quadro(c, x0, y0, w, h);
     c.fillStyle = '#b39a5c';
-    ISO.rrect(c, len / 2 - 40, y0 - 9, 80, 5, 2.5); c.fill();
+    ISO.rrect(c, len / 2 - 40, y0 - 6, 80, 4, 2); c.fill();
     c.fillStyle = '#6e5d33';
-    c.fillRect(len / 2 - 2, y0 - 14, 4, 6);
+    c.fillRect(len / 2 - 2, 0, 4, y0 - 5);
     void rgbOn;
   }
 
