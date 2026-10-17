@@ -25,38 +25,27 @@
      paredes de trás da ponta direita (que pintariam por cima dela) ou
      depois de quem passa na frente. Como no naParede do furniture.js, ela
      vira tiras de 1 tile, cada uma com a sua chave. O desenho inteiro é
-     feito uma vez num canvas (2x) e cada tira copia só a sua faixa
-     vertical, com as bordas no pixel inteiro da tela: não sobra costura
-     entre as tiras e o custo por quadro é um drawImage por tira.        */
-  const ESC = 2;
+     feito uma vez no cache em níveis (FURN.emCache, a resolução segue o
+     zoom: em 2x fixo a estante ficava borrada na tela 3x do celular) e
+     cada tira copia só a sua faixa vertical, com as bordas no pixel
+     inteiro da tela: não sobra costura entre as tiras e o custo por
+     quadro é um drawImage por tira.                                     */
   const PINTA = {}, VERSAO = {};
-  const cachePeca = new Map();
-
-  function cacheDaPeca(o) {
-    const ver = VERSAO[o.t] ? VERSAO[o.t]() : 0;
-    let c = cachePeca.get(o.peca);
-    if (c && c.ver === ver) return c;
-    const x0 = S(o.x, o.y + o.d).x - 26, x1 = S(o.x + o.w, o.y).x + 26;
-    const y0 = S(o.x, o.y).y - o.alto, y1 = S(o.x + o.w, o.y + o.d).y + 20;
-    const cv = c ? c.cv : document.createElement('canvas');
-    cv.width = Math.ceil((x1 - x0) * ESC); cv.height = Math.ceil((y1 - y0) * ESC);
-    const g = cv.getContext('2d');
-    g.setTransform(ESC, 0, 0, ESC, -x0 * ESC, -y0 * ESC);
-    PINTA[o.t](g, o);
-    c = { cv, x: x0, y: y0, w: cv.width / ESC, h: cv.height / ESC, ver };
-    cachePeca.set(o.peca, c);
-    return c;
-  }
+  const pintaPeca = (g, o) => PINTA[o.t](g, o);
 
   function tira(ctx, o) {
-    const c = cacheDaPeca(o);
-    const m = ctx.getTransform();
-    const px = v => (Math.round(v * m.a + m.e) - m.e) / m.a;      // borda no pixel da tela
-    const yc = o.y + o.d / 2;
-    const L = o.fatia[0] <= o.x + 1e-6 ? c.x : Math.max(c.x, px(S(o.fatia[0], yc).x));
-    const R = o.fatia[1] >= o.x + o.w - 1e-6 ? c.x + c.w : Math.min(c.x + c.w, px(S(o.fatia[1], yc).x));
-    if (R - L <= 0) return;
-    ctx.drawImage(c.cv, (L - c.x) * ESC, 0, (R - L) * ESC, c.cv.height, L, c.y, R - L, c.h);
+    let op = o.opCache;
+    if (!op) {
+      // a caixa é a da peça inteira; a faixa, a desta tira (sem fim nas pontas)
+      const yc = o.y + o.d / 2;
+      op = o.opCache = {
+        chave: o.peca, ver: VERSAO[o.t],
+        caixa: [S(o.x, o.y + o.d).x - 26, S(o.x, o.y).y - o.alto, S(o.x + o.w, o.y).x + 26, S(o.x + o.w, o.y + o.d).y + 20],
+        faixa: [o.fatia[0] <= o.x + 1e-6 ? -Infinity : S(o.fatia[0], yc).x,
+                o.fatia[1] >= o.x + o.w - 1e-6 ? Infinity : S(o.fatia[1], yc).x]
+      };
+    }
+    FURN.emCache(ctx, o, pintaPeca, op);
   }
 
   function encostar(o) {

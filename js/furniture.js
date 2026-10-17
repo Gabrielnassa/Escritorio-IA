@@ -29,8 +29,9 @@ const FURN = (() => {
       ele, o corpo sobraria para fora do encosto.                          */
   function cadeira(seat, tipo, hue) {
     const L = 1.05 * AVATAR.SCALE;                   // lado da pegada, em tiles
+    // par: as duas camadas saem sempre no mesmo nível do cache (ver emCache)
     const comum = { x: seat.x - L / 2, y: seat.y - L / 2, w: L, d: L,
-                    face: seat.facing, hue: hue || 200 };
+                    face: seat.facing, hue: hue || 200, par: {} };
     // o boneco é desenhado em (seat.x + seat.y + 0.5). De costas ('n'/'w')
     // a camada de trás já tem base e assento: ela entra logo antes dele,
     // senão a mesa de reunião (chave no centro dela) pintava por cima
@@ -218,47 +219,40 @@ const FURN = (() => {
   }
 
   /* Peças que nunca mudam (as cadeiras, o expositor…) são pintadas uma vez
-     num canvas próprio e depois só copiadas. O cache é feito em 2x para
-     continuar nítido no zoom. O que tem animação — arcade, TV, os LEDs
-     do rack — continua sendo desenhado ao vivo.                        */
+     num canvas próprio e depois só copiadas. O que tem animação — arcade,
+     TV, os LEDs do rack — continua sendo desenhado ao vivo.
+     Eram canvases em 2x fixo, que nunca saíam da memória: borrados na tela
+     3x do celular e 15 MB parados na visão geral. Agora passam pelo cache
+     em níveis (emCache, mais abaixo), com a caixa larga de sempre: a
+     resolução acompanha o zoom e o nível sem uso é descartado.         */
   const ALTURA_CACHE = {
     chairGamer: 48, chairBoss: 68, chairSimple: 54, chairGuest: 54, expositor: 96,
     pilhaCaixas: 118, lowTable: 40, cooler: 64
   };
-  /* poltrona, xadrez, sinuca, pebolim, sofá e os móveis das salas usam o
-     cache em níveis (emCache, mais abaixo): caixa justa e resolução que
-     acompanha o zoom. Em 2x, com a margem fixa daqui, eles somavam quase
-     2 Mpx de canvas — e, passando do orçamento de textura do Chromium, o
-     quadro inteiro da visão geral ficava duas vezes mais lento.        */
-  const ESC_CACHE = 2;
-  const cacheMovel = new Map();
-
-  function montaCacheMovel(o, f) {
+  /* poltrona, xadrez, sinuca, pebolim, sofá e os móveis das salas chamam o
+     emCache direto, com a caixa justa: em 2x, com a margem fixa daqui, eles
+     somavam quase 2 Mpx de canvas — e, passando do orçamento de textura do
+     Chromium, o quadro inteiro da visão geral ficava duas vezes mais lento. */
+  const opMovel = new Map();      // peça -> opções do emCache, ou null (grande demais)
+  function opcoesMovel(o) {
     const w = o.w || 1, d = o.d || 1;
     const alto = ALTURA_CACHE[o.t] || 120;
     const x0 = ISO.toScreen(o.x, o.y + d).x - 22;
     const x1 = ISO.toScreen(o.x + w, o.y).x + 22;
     const y0 = ISO.toScreen(o.x, o.y).y - alto;
     const y1 = ISO.toScreen(o.x + w, o.y + d).y + 26;
-    const W = Math.ceil((x1 - x0) * ESC_CACHE), H = Math.ceil((y1 - y0) * ESC_CACHE);
-    if (W <= 0 || H <= 0 || W * H > 1.2e6) return null;
-    const cv = document.createElement('canvas');
-    cv.width = W; cv.height = H;
-    const c = cv.getContext('2d');
-    c.scale(ESC_CACHE, ESC_CACHE);
-    c.translate(-x0, -y0);
-    f(c, o, 0);
-    return { cv, x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    if (x1 <= x0 || y1 <= y0 || (x1 - x0) * (y1 - y0) > 3e5) return null;
+    return { caixa: [x0, y0, x1, y1], par: o.par };
   }
 
   function drawItem(ctx, o, t) {
     const f = DRAW[o.t];
     if (!f) return;
     if (!(o.t in ALTURA_CACHE)) { f(ctx, o, t); return; }
-    let c = cacheMovel.get(o);
-    if (c === undefined) { c = montaCacheMovel(o, f); cacheMovel.set(o, c); }
-    if (!c) { f(ctx, o, t); return; }
-    ctx.drawImage(c.cv, c.x, c.y, c.w, c.h);
+    let op = opMovel.get(o);
+    if (op === undefined) { op = opcoesMovel(o); opMovel.set(o, op); }
+    if (!op) { f(ctx, o, t); return; }
+    emCache(ctx, o, f, op);
   }
   function depth(o) {
     if (o.dk !== undefined) return o.dk;
@@ -2091,58 +2085,139 @@ const FURN = (() => {
      e a resolução acompanha o zoom. Um canvas em 2x copiado no zoom de
      visão geral (fator < 0,5) custava ~3 ms por mesa no Chromium, e as
      12 mesas dobravam o tempo do quadro; com a cópia em 1x abaixo do
-     zoom 1,3 (e 0,5x abaixo de 0,45) ela volta a ser de graça.
+     zoom ~1,15 (e 0,5x abaixo de 0,45) ela volta a ser de graça.
      Opções: alto (px acima do piso), margem, ver (função: quando o valor
      muda, repinta — fonte ou logo que terminaram de carregar), chave
-     (várias tiras da mesma peça dividem um cache) e faixa ([x0, x1] na
-     tela, sem câmera: a tira copia só essa fatia vertical da peça).
-     Um nível que fica 6 s sem ser desenhado é descartado: depois de olhar
-     as salas de perto, os canvases em 2x não ficam ocupando textura na
-     visão geral (passando do orçamento, o quadro todo fica lento).    */
+     (várias tiras da mesma peça dividem um cache), faixa ([x0, x1] na
+     tela, sem câmera: a tira copia só essa fatia vertical da peça), caixa
+     ([x0, y0, x1, y1] na tela, no lugar de alto e margem) e par (ver
+     abaixo).
+     Os níveis vão até 5x: na tela 3x do celular, de perto, o 2x aparecia
+     ampliado e borrado. Para isso caber na memória (no iPhone ela é curta,
+     e passando dela o Safari recarrega a página):
+     · nenhum canvas passa de MAX_PX: a peça grande para num nível menor;
+     · um nível que fica VIDA_NIVEL ms sem ser desenhado é descartado, e
+       passando do teto (umas 4 telas de pixels, entre 24 e 48 MB) sai o
+       usado há mais tempo — nunca um que apareceu neste quadro ou no
+       anterior, senão as peças do fim da lista se apagavam e repintavam;
+     · um nível novo é pintado dentro de um orçamento por quadro (ORC_MS):
+       ao cruzar de nível no zoom, as peças vão ficando nítidas aos poucos,
+       mostrando o nível pronto mais parecido enquanto isso, em vez de
+       travar um quadro pintando todas. Com o zoom andando (pinça,
+       animação), um nível pronto a até ~2x do certo segue aparecendo, e o
+       certo entra QUIETO ms depois de a escala parar. Peça sem nível
+       nenhum pinta na hora — em 1x, se o orçamento do quadro já acabou.
+     · peças em camadas que se encaixam no pixel do cache (a cadeira,
+       'tras' e 'frente', ver cadeiraBase) passam op.par, um objeto comum
+       às duas: a primeira a desenhar escolhe o nível do quadro e a outra
+       segue, senão a costura do quadril aparecia.                       */
   const cacheNiveis = new Map();
-  let varridoEm = 0;
-  function varreNiveis(agora) {
-    for (const c of cacheNiveis.values()) for (const k in c.nivel) {
-      if (agora - c.uso[k] < 6000) continue;
-      c.nivel[k].width = c.nivel[k].height = 0;
-      delete c.nivel[k];
+  const MAX_PX = 2.2e6, MB = 1048576, VIDA_NIVEL = 4000, ORC_MS = 4;
+  let varridoEm = 0, varridoQ = -1, bytesNiveis = 0, teto = 24 * MB, telaPx = 0;
+  let quadro = 0, orcamento = ORC_MS;
+  const QUIETO = 250;                         // ms de escala parada até subir de nível
+  let quadroEscala = -1, escalaAntes = 0, mexeuEm = -1e9;
+  // um quadro do navegador renova o orçamento (este rAF foi pedido antes do
+  // do app, então roda antes dele em cada quadro)
+  (function conta() { quadro++; orcamento = ORC_MS; requestAnimationFrame(conta); })();
+
+  /** nível para a escala da tela: até ~12% de ampliação não se vê */
+  function nivelAlvo(a, c) {
+    let esc = a < .45 ? .5 : a <= 1.15 ? 1 : a <= 2.24 ? 2 : a <= 3.36 ? 3 : a <= 4.48 ? 4 : 5;
+    while (esc > .5 && c.w * c.h * esc * esc > MAX_PX) esc = esc > 2 ? esc - 1 : esc / 2;
+    return esc;
+  }
+  /** dos níveis prontos, o mais parecido com o alvo (empate: o maior) */
+  function nivelPronto(c, alvo) {
+    let melhor = null, dm = Infinity;
+    for (const k in c.nivel) {
+      const e = +k, d = Math.abs(Math.log(e / alvo)) - (e > alvo ? 1e-6 : 0);
+      if (d < dm) { dm = d; melhor = e; }
     }
+    return melhor;
+  }
+  function soltaNivel(c, k) {
+    const cv = c.nivel[k];
+    bytesNiveis -= cv.width * cv.height * 4;
+    cv.width = cv.height = 0;                // devolve a memória já: o Safari demora a recolher
+    delete c.nivel[k]; delete c.uso[k]; delete c.q[k];
+  }
+  function varreNiveis(agora) {
+    for (const c of cacheNiveis.values()) for (const k in c.nivel)
+      if (agora - c.uso[k] >= VIDA_NIVEL) soltaNivel(c, k);
+    if (bytesNiveis <= teto) return;
+    const fila = [];
+    for (const c of cacheNiveis.values()) for (const k in c.nivel)
+      if (c.q[k] < quadro - 1) fila.push([c.uso[k], c, k]);
+    fila.sort((a, b) => a[0] - b[0]);
+    for (const [, c, k] of fila) { if (bytesNiveis <= teto) break; soltaNivel(c, k); }
   }
   function emCache(ctx, o, pinta, op = {}) {
     const chave = op.chave || o;
     let c = cacheNiveis.get(chave);
     const v = op.ver ? op.ver() : 0;
-    if (c && c.v !== v) { for (const k in c.nivel) c.nivel[k].width = 0; c.nivel = {}; c.v = v; }
+    if (c && c.v !== v) { for (const k in c.nivel) soltaNivel(c, k); c.v = v; }
     if (!c) {
-      const w = o.w || 1, d = o.d || 1, m = op.margem === undefined ? 4 : op.margem;
-      const x0 = S(o.x, o.y + d).x - m, x1 = S(o.x + w, o.y).x + m;
-      const y0 = S(o.x, o.y).y - (op.alto || 60) - m, y1 = S(o.x + w, o.y + d).y + m;
-      c = { x: x0, y: y0, w: x1 - x0, h: y1 - y0, nivel: {}, uso: {}, v };
+      let x0, y0, x1, y1;
+      if (op.caixa) [x0, y0, x1, y1] = op.caixa;
+      else {
+        const w = o.w || 1, d = o.d || 1, m = op.margem === undefined ? 4 : op.margem;
+        x0 = S(o.x, o.y + d).x - m; x1 = S(o.x + w, o.y).x + m;
+        y0 = S(o.x, o.y).y - (op.alto || 60) - m; y1 = S(o.x + w, o.y + d).y + m;
+      }
+      c = { x: x0, y: y0, w: x1 - x0, h: y1 - y0, nivel: {}, uso: {}, q: {}, v };
       cacheNiveis.set(chave, c);
     }
+    const tela = ctx.canvas.width * ctx.canvas.height;   // a tela dá o tamanho do teto
+    if (tela > telaPx) { telaPx = tela; teto = Math.min(48 * MB, Math.max(24 * MB, tela * 16)); }
     const mt = ctx.getTransform();
-    const a = Math.abs(mt.a);                          // px na tela por px de mundo
-    // 2x só bem de perto: no zoom das vistas de sala (~1,15) a cópia em 1x
-    // amplia só um pouco, e 2x ali estourava o orçamento de textura
-    const esc = a >= 1.3 ? 2 : a >= .45 ? 1 : .5;
+    const a = Math.hypot(mt.a, mt.b);                     // px na tela por px de mundo
+    const agora = performance.now();
+    // a primeira peça do quadro vê se o zoom está andando
+    if (quadroEscala !== quadro) {
+      quadroEscala = quadro;
+      if (Math.abs(a - escalaAntes) > a * .002) mexeuEm = agora;
+      escalaAntes = a;
+    }
+    const alvo = nivelAlvo(a, c);
+    const par = op.par;
+    let esc;
+    if (par && par.quadro === quadro) esc = par.esc;      // a outra camada já escolheu
+    else {
+      esc = alvo;
+      if (!c.nivel[alvo]) {
+        const pr = nivelPronto(c, alvo);
+        const perto = pr !== null && Math.max(alvo / pr, pr / alvo) <= 2.2;
+        if (pr !== null) { if (orcamento <= 0 || (perto && agora - mexeuEm < QUIETO)) esc = pr; }
+        else if (orcamento <= 0 && alvo > 1) esc = 1;   // provisório barato; o certo vem depois
+      }
+      if (par) { par.quadro = quadro; par.esc = esc; }
+    }
     let cv = c.nivel[esc];
     if (!cv) {
+      const t0 = performance.now();
       cv = c.nivel[esc] = document.createElement('canvas');
       cv.width = Math.ceil(c.w * esc); cv.height = Math.ceil(c.h * esc);
       const g = cv.getContext('2d');
       g.setTransform(esc, 0, 0, esc, -c.x * esc, -c.y * esc);
       pinta(g, o, 0);
+      bytesNiveis += cv.width * cv.height * 4;
+      orcamento -= performance.now() - t0;
     }
-    const agora = performance.now();
-    c.uso[esc] = agora;
-    if (agora - varridoEm > 2000) { varridoEm = agora; varreNiveis(agora); }
+    c.uso[esc] = agora; c.q[esc] = quadro;
+    if (agora - varridoEm > 2000 || (bytesNiveis > teto && varridoQ !== quadro)) {
+      varridoEm = agora; varridoQ = quadro; varreNiveis(agora);
+    }
     const W = cv.width / esc, H = cv.height / esc;
     if (!op.faixa) { ctx.drawImage(cv, c.x, c.y, W, H); return; }
     // borda da tira no pixel inteiro da tela, para não sobrar costura
     const px = q => (Math.round(q * mt.a + mt.e) - mt.e) / mt.a;
     const L = Math.max(c.x, px(op.faixa[0])), R = Math.min(c.x + W, px(op.faixa[1]));
-    if (R - L <= 0) return;
-    ctx.drawImage(cv, (L - c.x) * esc, 0, (R - L) * esc, cv.height, L, c.y, R - L, H);
+    // a origem não pode passar da borda do canvas nem por um fio: em 3x a
+    // conta sobra 1e-13 px, e o Safari antigo não desenha nada nesse caso
+    const sx = Math.max(0, (L - c.x) * esc), sw = Math.min(cv.width - sx, (R - L) * esc);
+    if (sw <= 0) return;
+    ctx.drawImage(cv, sx, 0, sw, cv.height, L, c.y, R - L, H);
   }
 
   const MESA_DEV = {
@@ -2446,5 +2521,16 @@ const FURN = (() => {
 
   return { items, workSlots, restSlots, meetSlots, drawItem, depth, caneca, TOP,
            add, block, cadeira, emCamadas, naParede, registrar, remover, emCache, orquidea, vidro, fonteCarregada, faceX,
-           faceY, monitor, monitorY, teclado, tecladoY, gabinete, desenho: DRAW };
+           faceY, monitor, monitorY, teclado, tecladoY, gabinete, desenho: DRAW,
+           /** memória do cache em níveis, para depurar (lista: cada nível vivo) */
+           estadoCache(lista) {
+             const r = { MB: +(bytesNiveis / MB).toFixed(1), teto: +(teto / MB).toFixed(1), pecas: cacheNiveis.size };
+             if (lista) {
+               r.niveis = [];
+               for (const [k, c] of cacheNiveis) for (const e in c.nivel)
+                 r.niveis.push([(k && k.t) || String(k).slice(0, 20), +e, +(c.nivel[e].width * c.nivel[e].height * 4 / 1048576).toFixed(2)]);
+               r.niveis.sort((a, b) => b[2] - a[2]);
+             }
+             return r;
+           } };
 })();

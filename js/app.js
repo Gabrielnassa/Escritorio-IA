@@ -17,7 +17,7 @@ const cam = { x: 0, y: 0, z: 0.62, tz: 0.62 };
 let cw = 0, ch = 0, dpr = 1;
 
 function resize() {
-  dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  dpr = Math.min(window.devicePixelRatio || 1, 3);
   const r = cv.getBoundingClientRect();
   cw = r.width; ch = r.height;
   cv.width = Math.round(cw * dpr);
