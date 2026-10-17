@@ -22,7 +22,7 @@ let cw = 0, ch = 0, dpr = 1;      // dpr = escala de desenho em uso (ver NIT)
    O canvas é desenhado na densidade real da tela (até 3x, a do iPhone).
    Antes o teto era 1,5x e o navegador esticava a imagem 2x no celular:
    era daí o embaçado. Densidade alta custa pixel, então a escala desce
-   um degrau (3 → 2,5 → 2 → 1,5 …) quando o aparelho não segura ~45 fps
+   um degrau (3 → 2,5 → 2, nunca abaixo de 2x numa tela retina) quando o aparelho não segura ~30 fps
    por 2 s, e sobe de volta quando sobra folga. Cada degrau que falha
    fica mais tempo de castigo antes de ser tentado de novo (não fica
    oscilando). Se descer não melhora o fps (modo de economia do iPhone
@@ -54,7 +54,11 @@ function resize() {
   // topo (janela levada para um monitor retina já fica nítida); quem tinha
   // descido fica no mesmo valor
   const max = escalaMax(), antes = NIT.degraus[NIT.i], noTopo = NIT.i === 0;
-  NIT.degraus = [max].concat([2.5, 2, 1.5, 1.25, 1].filter(v => v < max - 0.05));
+  // piso de qualidade: no celular (tela pequena e densa) nunca desce abaixo
+  // de 2x, senão volta o embaçado que era a queixa; numa tela grande de
+  // computador pode descer até 1,5x, que era o padrão antigo
+  const piso = Math.min(Math.min(cw, ch) < 600 ? 2 : 1.5, max);
+  NIT.degraus = [max].concat([2.5, 2, 1.5, 1.25, 1].filter(v => v < max - 0.05 && v >= piso - 1e-6));
   const k = NIT.degraus.findIndex(v => v <= antes + 1e-6);
   NIT.i = noTopo ? 0 : k < 0 ? NIT.degraus.length - 1 : k;
   dpr = NIT.fixo ? Math.min(NIT.fixo, max) : NIT.degraus[NIT.i];
@@ -94,15 +98,17 @@ function avaliaNitidez(fps, ms, agora) {
     }
     return;
   }
-  if (J.length >= 4 && J.slice(-4).every(f => f < 45) &&
+  // nitidez primeiro: só abre mão dela abaixo de 30 fps, que ainda é fluido
+  // para um escritório andando devagar
+  if (J.length >= 4 && J.slice(-4).every(f => f < 30) &&
       NIT.i < NIT.degraus.length - 1 && agora > NIT.semDescerAte) {
     const de = NIT.i, castigoAntes = NIT.castigo[de] || 0;
     // o degrau que falhou fica de castigo: 8 s, 16 s, 32 s… até 2 min
     NIT.castigo[de] = Math.min(120000, (castigoAntes || 4000) * 2);
     NIT.bloqueio[de] = agora + NIT.castigo[de];
     NIT.prova = { de, fpsAntes: media(4), castigoAntes };
-    // muito longe dos 45 (menos de 28 fps): pula dois degraus de uma vez
-    const passo = media(4) < 28 ? 2 : 1;
+    // muito longe dos 30 (menos de 18 fps): pula dois degraus de uma vez
+    const passo = media(4) < 18 ? 2 : 1;
     trocaDegrau(Math.min(NIT.degraus.length - 1, de + passo), agora, media(4));
     return;
   }
