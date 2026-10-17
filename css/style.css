@@ -28,7 +28,10 @@
 }
 
 *{box-sizing:border-box}
-html,body{height:100%}
+/* manipulation: sem zoom de toque duplo na página (o toque duplo é do
+   palco); overscroll: o Safari não "quica" a página inteira no arrasto */
+html,body{height:100%;overscroll-behavior:none}
+html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{
   margin:0; background:var(--bg); color:var(--txt);
   font-family:var(--f-ui); font-size:15px;
@@ -36,16 +39,24 @@ body{
 }
 button{font-family:inherit;color:inherit}
 
+/* 100vh no Safari do iPhone conta a área embaixo das barras do navegador:
+   o rodapé do palco (os botões de zoom) ficava escondido atrás delas.
+   100dvh é a altura que se vê de fato; iOS antigo recebe --app-h do JS.
+   --topo: a barra de cima cresce com o recorte da tela (viewport-fit=cover) */
+:root{--topo:calc(62px + env(safe-area-inset-top, 0px))}
 #app{
-  height:100vh; display:grid;
+  height:100vh; height:100dvh; display:grid;
   grid-template-columns: 1fr 360px;
-  grid-template-rows: 62px 1fr;
+  grid-template-rows: var(--topo) 1fr;
   grid-template-areas: "top top" "stage panel";
 }
+html.sem-dvh #app{height:var(--app-h,100vh)}
 
 /* ===================== TOPBAR ===================== */
 #topbar{
   grid-area:top; display:flex; align-items:center; gap:18px; padding:0 16px;
+  padding:env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px))
+          0 max(16px, env(safe-area-inset-left, 0px));
   background:linear-gradient(180deg,#0b0f19,#05070d);
   border-bottom:1px solid var(--line);
   box-shadow:0 6px 24px rgba(0,0,0,.6); position:relative; z-index:20;
@@ -108,7 +119,11 @@ button{font-family:inherit;color:inherit}
 /* ===================== PALCO ===================== */
 #stage{grid-area:stage;position:relative;overflow:hidden;background:
   radial-gradient(1100px 620px at 50% 40%, #0d1626 0%, #070a12 62%, #05070d 100%)}
-#scene{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+/* o dedo no palco é todo do escritório (arrasto, pinça, toque duplo): sem
+   rolagem, zoom da página, lupa de seleção nem menu de "salvar imagem" */
+#stage{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
 #scene.dragging{cursor:grabbing}
 
 #hud-left{position:absolute;left:14px;top:14px;pointer-events:none}
@@ -121,19 +136,26 @@ button{font-family:inherit;color:inherit}
 }
 .roomlegend .dot{width:9px;height:9px;border-radius:3px;box-shadow:0 0 9px currentColor}
 
-#fps{position:absolute;left:14px;bottom:14px;font:600 11px var(--f-ui);
+#fps{position:absolute;font:600 11px var(--f-ui);
+  left:calc(14px + env(safe-area-inset-left, 0px));bottom:calc(14px + env(safe-area-inset-bottom, 0px));
   color:var(--txt-dim);background:rgba(8,10,18,.72);border:1px solid var(--line);
   padding:4px 9px;border-radius:8px;letter-spacing:.6px;pointer-events:none}
 #fps b{color:var(--ok);font-family:var(--f-display)}
 #fps.ruim b{color:var(--warn)}
 
-#zoombox{position:absolute;right:14px;bottom:14px;display:flex;flex-direction:column;gap:6px}
+#zoombox{position:absolute;display:flex;flex-direction:column;gap:6px;
+  right:calc(14px + env(safe-area-inset-right, 0px));bottom:calc(14px + env(safe-area-inset-bottom, 0px))}
 .zbtn{
   width:38px;height:38px;border-radius:10px;border:1px solid var(--line);
   background:rgba(12,15,26,.9);color:var(--txt);font-size:17px;cursor:pointer;
-  backdrop-filter:blur(6px);transition:.15s;
+  backdrop-filter:blur(6px);transition:.15s;padding:0;
 }
 .zbtn:hover{background:#1d2340;border-color:#38406a}
+/* dedo precisa de alvo de pelo menos 44 px */
+@media (pointer:coarse){
+  #zoombox{gap:8px}
+  .zbtn{width:46px;height:46px;font-size:20px;border-radius:12px}
+}
 
 .tooltip{
   position:absolute;pointer-events:none;z-index:15;
@@ -147,7 +169,7 @@ button{font-family:inherit;color:inherit}
 .hidden{display:none !important}
 
 .toast{
-  position:absolute;left:50%;bottom:22px;transform:translateX(-50%);
+  position:absolute;left:50%;bottom:calc(22px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);
   background:linear-gradient(135deg,#1a1f38,#111527);border:1px solid #3a4470;
   padding:11px 20px;border-radius:12px;font-weight:600;font-size:13.5px;
   box-shadow:var(--shadow);z-index:30;animation:rise .25s ease;
@@ -275,6 +297,8 @@ button{font-family:inherit;color:inherit}
 /* ===================== MONITOR DO SISTEMA ===================== */
 .monitor{position:fixed;inset:0;z-index:120;background:#05060a;display:flex;flex-direction:column}
 .mon-top{display:flex;align-items:center;gap:16px;padding:10px 14px;
+  padding:max(10px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px))
+          10px max(14px, env(safe-area-inset-left, 0px));
   background:linear-gradient(180deg,#11131f,#0a0c14);border-bottom:1px solid var(--line)}
 .mon-quem{display:flex;align-items:center;gap:11px;min-width:0}
 .mon-av{width:34px;height:44px;border-radius:8px;background:#0a0d18;border:1px solid var(--line)}
@@ -332,9 +356,12 @@ button{font-family:inherit;color:inherit}
 
 /* ===================== MODAL ===================== */
 .modal{position:fixed;inset:0;background:rgba(3,4,8,.78);backdrop-filter:blur(5px);
-  display:grid;place-items:center;z-index:140;padding:20px}
+  display:grid;place-items:center;z-index:140;padding:20px;
+  padding:max(20px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px))
+          max(20px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px))}
 .modal-card{
-  width:min(520px,100%);max-height:86vh;overflow-y:auto;position:relative;
+  width:min(520px,100%);max-height:86vh;max-height:86dvh;overflow-y:auto;position:relative;
+  overscroll-behavior:contain;
   background:linear-gradient(180deg,#141827,#0d1019);
   border:1px solid #2c3459;border-radius:18px;box-shadow:var(--shadow);padding:22px;
 }
@@ -392,8 +419,10 @@ button{font-family:inherit;color:inherit}
 /* responsivo */
 @media (max-width:1080px){
   #app{grid-template-columns:1fr;grid-template-areas:"top" "stage"}
-  #panel{position:fixed;right:0;top:62px;bottom:0;width:min(360px,92vw);
-    transform:translateX(102%);transition:.25s;z-index:50;box-shadow:var(--shadow)}
+  #panel{position:fixed;right:0;top:var(--topo);bottom:0;width:min(360px,92vw);
+    transform:translateX(102%);transition:.25s;z-index:50;box-shadow:var(--shadow);
+    padding-right:env(safe-area-inset-right, 0px);padding-bottom:env(safe-area-inset-bottom, 0px)}
+  .tabpane{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   #panel.open{transform:none}
   .only-mobile{display:inline-block}
   .alca-painel{display:none}            /* no celular o painel abre pelo ☰ */
@@ -409,7 +438,7 @@ button{font-family:inherit;color:inherit}
   display:flex;align-items:center;justify-content:center;padding:24px}
 #reuniao.hidden{display:none}
 .rn-card{background:var(--panel,#10121b);border:1px solid var(--line,#262b3d);
-  border-radius:18px;width:min(940px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+  border-radius:18px;width:min(940px,100%);max-height:90vh;max-height:90dvh;display:flex;flex-direction:column;overflow:hidden}
 .rn-top{display:flex;align-items:center;gap:14px;padding:16px 20px;
   border-bottom:1px solid var(--line,#262b3d);
   background:linear-gradient(90deg,rgba(0,179,255,.14),transparent)}
@@ -491,17 +520,48 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center}
 
 /* celular: topo enxuto e a torre visível atrás do cartão de entrada */
 @media (max-width:760px){
-  #topbar{gap:10px;padding:0 10px}
+  #topbar{gap:10px;padding:0 10px;
+    padding:env(safe-area-inset-top, 0px) max(10px, env(safe-area-inset-right, 0px))
+            0 max(10px, env(safe-area-inset-left, 0px))}
   #topbar .brand-txt.sub, #topbar .clockbox, #topbar .stats{display:none}
   .brand .logo{height:26px}
   .topactions{margin-left:auto;overflow-x:auto;scrollbar-width:none;max-width:62vw}
   .topactions::-webkit-scrollbar{display:none}
   .topactions .btn{padding:7px 10px;font-size:12px}
   #btn-quadro, #btn-avisos, #btn-report, #btn-speak{display:none}
-  #entrada .ent-card{top:auto;bottom:16px}
+  #entrada .ent-card{top:auto;bottom:calc(16px + env(safe-area-inset-bottom, 0px))}
   #entrada .ent-cidade{display:none}
   #entrada .ent-foto{left:0;width:100%;aspect-ratio:auto;-webkit-mask-image:none;mask-image:none}
   #entrada .ent-foto img{object-position:62% 30%}
   #entrada .ent-card p:not(#ent-end){display:none}
   #hud-left{display:none}
+  /* monitor: nome e estado numa linha, botões na de baixo (rolam de lado);
+     o ✕ fica fixo no canto, antes ele ia parar fora da tela */
+  .mon-top{flex-wrap:wrap;gap:8px 10px;position:relative;
+    padding-right:calc(60px + env(safe-area-inset-right, 0px))}
+  .mon-quem{flex:1 1 0;min-width:0}
+  .mon-quem > div{min-width:0}
+  .mon-quem strong, .mon-quem span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mon-estado{flex:0 0 auto;padding:5px 10px;font-size:11.5px}
+  .mon-acoes{order:3;flex:1 0 100%;margin-left:0;margin-right:-50px;overflow-x:auto;scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  .mon-acoes::-webkit-scrollbar{display:none}
+  .mon-acoes .btn{flex:0 0 auto;padding:9px 12px;font-size:12.5px}
+  #mon-x{position:absolute;top:max(8px, env(safe-area-inset-top, 0px));right:max(8px, env(safe-area-inset-right, 0px));
+    width:44px;height:44px;padding:0;display:grid;place-items:center;font-size:16px}
+  .modal-card{padding:18px}
+}
+
+/* celular deitado: sobram ~340 px de altura; a barra de cima encolhe e
+   os botões de zoom vão para uma linha, senão tapavam metade do palco */
+@media (max-height:480px) and (orientation:landscape){
+  :root{--topo:calc(48px + env(safe-area-inset-top, 0px))}
+  .brand .logo{height:24px}
+  #zoombox{flex-direction:row}
+}
+
+/* iPhone dá zoom na página quando o campo focado tem letra menor que 16 px
+   e não desfaz depois: a ficha e o painel ficavam ampliados e cortados */
+@media (pointer:coarse){
+  input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select{font-size:16px !important}
 }

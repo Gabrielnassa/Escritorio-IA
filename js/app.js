@@ -13,17 +13,124 @@ const opts = { rgb: true, names: true, status: true, paths: false };
 /* ===========================================================
    CÂMERA
    =========================================================== */
-const cam = { x: 0, y: 0, z: 0.62, tz: 0.62 };
-let cw = 0, ch = 0, dpr = 1;
+/* ancora: ponto de mundo que fica parado na tela enquanto o zoom anima
+   (toque duplo); sem ela o zoom é em volta do centro, como no botão */
+const cam = { x: 0, y: 0, z: 0.62, tz: 0.62, ancora: null };
+let cw = 0, ch = 0, dpr = 1;      // dpr = escala de desenho em uso (ver NIT)
+
+/* ---------- nitidez ----------
+   O canvas é desenhado na densidade real da tela (até 3x, a do iPhone).
+   Antes o teto era 1,5x e o navegador esticava a imagem 2x no celular:
+   era daí o embaçado. Densidade alta custa pixel, então a escala desce
+   um degrau (3 → 2,5 → 2 → 1,5 …) quando o aparelho não segura ~45 fps
+   por 2 s, e sobe de volta quando sobra folga. Cada degrau que falha
+   fica mais tempo de castigo antes de ser tentado de novo (não fica
+   oscilando). Se descer não melhora o fps (modo de economia do iPhone
+   trava em 30), a culpa não era dos pixels: volta e não insiste.     */
+const NIT = {
+  degraus: [1], i: 0,
+  fixo: null,                // __escritorio.nitidez(2) trava num valor
+  janelas: [],               // fps de cada meio segundo, o mais novo no fim
+  calmaAte: 0,               // quadros logo depois de trocar refazem cache: não contam
+  bloqueio: {}, castigo: {}, // degrau -> até quando não sobe para ele / próxima pena
+  prova: null,               // acabou de descer: confere se adiantou
+  semDescerAte: 0, esperaDescer: 30000,
+  historico: []
+};
+// iOS recusa canvas acima de 16,7 M pixels e cada pixel são 4 bytes de
+// memória: 8,3 M (um 4K) é folga para monitor retina grande
+const MAX_PX = 8.3e6;
+
+function escalaMax() {
+  const real = Math.min(3, window.devicePixelRatio || 1);
+  const teto = Math.sqrt(MAX_PX / Math.max(1, cw * ch));
+  return Math.max(Math.min(1, real), Math.min(real, teto));
+}
 
 function resize() {
-  dpr = Math.min(window.devicePixelRatio || 1, 1.5);
   const r = cv.getBoundingClientRect();
   cw = r.width; ch = r.height;
-  cv.width = Math.round(cw * dpr);
-  cv.height = Math.round(ch * dpr);
+  // degraus abaixo da densidade da tela. Quem estava no topo continua no
+  // topo (janela levada para um monitor retina já fica nítida); quem tinha
+  // descido fica no mesmo valor
+  const max = escalaMax(), antes = NIT.degraus[NIT.i], noTopo = NIT.i === 0;
+  NIT.degraus = [max].concat([2.5, 2, 1.5, 1.25, 1].filter(v => v < max - 0.05));
+  const k = NIT.degraus.findIndex(v => v <= antes + 1e-6);
+  NIT.i = noTopo ? 0 : k < 0 ? NIT.degraus.length - 1 : k;
+  dpr = NIT.fixo ? Math.min(NIT.fixo, max) : NIT.degraus[NIT.i];
+  const w = Math.max(1, Math.round(cw * dpr)), h = Math.max(1, Math.round(ch * dpr));
+  // mexer em width/height zera e realoca o canvas: só quando mudou mesmo
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
 }
-window.addEventListener('resize', () => { resize(); });
+
+function trocaDegrau(i, agora, fps) {
+  // histórico curto das trocas, para conferir pelo console (__escritorio.nitidez())
+  NIT.historico.push({ s: +(agora / 1000).toFixed(1), de: NIT.degraus[NIT.i], para: NIT.degraus[i],
+                       fps: Math.round(fps) });
+  if (NIT.historico.length > 12) NIT.historico.shift();
+  NIT.i = i; NIT.janelas.length = 0; NIT.calmaAte = agora + 1500;
+  resize();
+}
+
+/** chamada a cada meio segundo com o fps medido */
+function avaliaNitidez(fps, ms, agora) {
+  const J = NIT.janelas;
+  // aba escondida, entrada do prédio por cima ou escala travada: não julga
+  if (NIT.fixo || document.hidden || !entrada.classList.contains('hidden')) { J.length = 0; return; }
+  if (agora < NIT.calmaAte) return;
+  J.push(fps); if (J.length > 8) J.shift();
+  const media = n => J.slice(-n).reduce((a, b) => a + b, 0) / n;
+
+  if (NIT.prova) {
+    if (J.length < 4) return;
+    const p = NIT.prova; NIT.prova = null;
+    if (media(4) < p.fpsAntes * 1.12 + 1) {
+      // não adiantou: volta para a nitidez de antes e passa um tempo sem descer
+      NIT.castigo[p.de] = p.castigoAntes;
+      NIT.bloqueio[p.de] = 0;
+      NIT.semDescerAte = agora + NIT.esperaDescer;
+      NIT.esperaDescer = Math.min(240000, NIT.esperaDescer * 2);
+      trocaDegrau(p.de, agora, media(4));
+    }
+    return;
+  }
+  if (J.length >= 4 && J.slice(-4).every(f => f < 45) &&
+      NIT.i < NIT.degraus.length - 1 && agora > NIT.semDescerAte) {
+    const de = NIT.i, castigoAntes = NIT.castigo[de] || 0;
+    // o degrau que falhou fica de castigo: 8 s, 16 s, 32 s… até 2 min
+    NIT.castigo[de] = Math.min(120000, (castigoAntes || 4000) * 2);
+    NIT.bloqueio[de] = agora + NIT.castigo[de];
+    NIT.prova = { de, fpsAntes: media(4), castigoAntes };
+    // muito longe dos 45 (menos de 28 fps): pula dois degraus de uma vez
+    const passo = media(4) < 28 ? 2 : 1;
+    trocaDegrau(Math.min(NIT.degraus.length - 1, de + passo), agora, media(4));
+    return;
+  }
+  if (J.length >= 8 && NIT.i > 0 && J.every(f => f >= 56) && ms < 12 &&
+      agora > (NIT.bloqueio[NIT.i - 1] || 0)) trocaDegrau(NIT.i - 1, agora, media(8));
+}
+
+/* tela que muda de tamanho: janela, giro do celular, barra do Safari que
+   aparece e some, painel que abre e fecha, monitor trocando de densidade */
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+if (window.ResizeObserver) new ResizeObserver(() => resize()).observe(cv);
+(function vigiaDensidade() {
+  if (!window.matchMedia) return;
+  const mq = matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)');
+  const muda = () => { resize(); vigiaDensidade(); };
+  if (mq.addEventListener) mq.addEventListener('change', muda, { once: true });
+})();
+/* iOS antes do 15.4 não conhece 100dvh: a altura vem do JS (ver style.css) */
+if (!(window.CSS && CSS.supports && CSS.supports('height', '100dvh'))) {
+  const raiz = document.documentElement;
+  raiz.classList.add('sem-dvh');
+  const altura = () => raiz.style.setProperty('--app-h', window.innerHeight + 'px');
+  altura();
+  window.addEventListener('resize', altura);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', altura);
+}
 
 const BOUNDS = (() => {
   const minX = ISO.toScreen(0, WORLD.H - 1).x;
@@ -34,16 +141,54 @@ const BOUNDS = (() => {
            cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 };
 })();
 
+/** zoom que põe o andar inteiro na tela (o botão ⛶ e a tecla F) */
+const zoomInteiro = () => Math.min(cw / BOUNDS.w, ch / BOUNDS.h) * 0.95;
+
+/* limites do zoom: tela pequena não precisa chegar tão perto (2,8 no
+   celular mostra dois pisos de largura) */
+const ZMIN = 0.1;
+const zMax = () => (Math.min(cw, ch) < 600 ? 2.2 : 2.8);
+const limZ = z => Math.max(ZMIN, Math.min(zMax(), z));
+
 function fit() {
-  const z = Math.min(cw / BOUNDS.w, ch / BOUNDS.h) * 0.95;
-  cam.tz = cam.z = Math.max(0.1, Math.min(1.6, z));
+  cam.tz = cam.z = Math.max(0.1, Math.min(1.6, zoomInteiro()));
   cam.x = -BOUNDS.cx; cam.y = -BOUNDS.cy;
+  cam.ancora = null;
+}
+
+/** primeira vista. Na tela grande é o andar inteiro, como sempre foi. No
+    celular em pé o andar inteiro sai com zoom 0,14, miúdo no meio de um
+    monte de vazio: aí abre na sala do chefe com o andar enchendo a altura,
+    e o resto fica a um arrasto de distância (o ⛶ continua mostrando tudo) */
+function enquadraInicio() {
+  const zi = zoomInteiro();
+  if (zi >= 0.3 || !cw || !ch) { fit(); return; }
+  const z = Math.max(zi, Math.min(0.62, Math.max(ch * 0.98 / BOUNDS.h, cw / 950)));
+  // sala do chefe à esquerda da tela e, se couber, o começo da dos devs
+  const visL = cw / z, visA = ch / z;
+  const esq = ISO.toScreen(1, 17).x - 40;              // quina oeste da sala do chefe
+  let cx = esq + visL / 2;
+  cx = Math.min(cx, BOUNDS.maxX - visL / 2);
+  let cy = ISO.toScreen(7, 9).y;                       // meio da sala do chefe
+  cy = visA >= BOUNDS.h ? BOUNDS.cy
+     : Math.max(BOUNDS.minY + visA / 2, Math.min(BOUNDS.maxY - visA / 2, cy));
+  cam.tz = cam.z = z;
+  cam.x = -cx; cam.y = -cy;
+  cam.ancora = null;
 }
 
 function focusTile(x, y, zoom) {
   const p = ISO.toScreen(x, y, 30);
   cam.x = -p.x; cam.y = -p.y;
-  if (zoom) cam.tz = Math.max(cam.tz, zoom);
+  cam.ancora = null;
+  if (zoom) cam.tz = limZ(Math.max(cam.tz, zoom));
+}
+
+/** zoom animado que mantém parado o ponto (sx, sy) da tela */
+function zoomEm(sx, sy, z) {
+  const w = screenToWorld(sx, sy);
+  cam.ancora = { sx, sy, wx: w.x, wy: w.y };
+  cam.tz = limZ(z);
 }
 
 const worldToScreen = (wx, wy) => ({
@@ -431,10 +576,26 @@ const elFps = document.getElementById("fps");
 let fpsN = 0, fpsT = 0, msDesenho = 0;
 
 function frame(now) {
-  const dt = Math.min(0.05, (now - T0) / 1000);
+  // dt da animação tem teto; o fps é medido com o intervalo real, senão
+  // 10 e 15 fps apareciam iguais (20) e a nitidez não via a diferença
+  const dtReal = Math.max(0, (now - T0) / 1000);
+  const dt = Math.min(0.05, dtReal);
   T0 = now; t += dt;
 
   cam.z += (cam.tz - cam.z) * Math.min(1, dt * 9);
+  if (cam.ancora) {
+    const a = cam.ancora;
+    if (Math.abs(cam.tz - cam.z) < cam.tz * 0.002) { cam.z = cam.tz; cam.ancora = null; }
+    cam.x = (a.sx - cw / 2) / cam.z - a.wx;
+    cam.y = (a.sy - ch / 2) / cam.z - a.wy;
+  }
+  // embalo do arrasto com o dedo: segue andando e freia
+  if (embalo) {
+    cam.x += embalo.vx * dt / cam.z; cam.y += embalo.vy * dt / cam.z;
+    const f = Math.exp(-dt * 4.2);
+    embalo.vx *= f; embalo.vy *= f;
+    if (Math.hypot(embalo.vx, embalo.vy) < 12) embalo = null;
+  }
   const tDesenho = performance.now();
 
   // ocupação das mesas para o brilho dos monitores
@@ -500,12 +661,15 @@ function frame(now) {
 
   // contador: separa o quadro inteiro do tempo que o desenho realmente leva
   msDesenho += performance.now() - tDesenho;
-  fpsN++; fpsT += dt;
+  fpsN++; fpsT += dtReal;
   if (fpsT >= 0.5) {
     const fps = fpsN / fpsT, ms = msDesenho / fpsN;
-    elFps.innerHTML = '<b>' + fps.toFixed(0) + '</b> fps · desenho ' + ms.toFixed(1) + ' ms';
+    // a escala de desenho vai junto: "2x" no iPhone quer dizer que desceu
+    elFps.innerHTML = '<b>' + fps.toFixed(0) + '</b> fps · desenho ' + ms.toFixed(1) + ' ms · ' +
+                      (+dpr.toFixed(2)) + 'x';
     elFps.classList.toggle('ruim', fps < 50);
     fpsN = 0; fpsT = 0; msDesenho = 0;
+    avaliaNitidez(fps, ms, now);
   }
 
   requestAnimationFrame(frame);
@@ -514,40 +678,140 @@ function frame(now) {
 /* ===========================================================
    INTERAÇÃO NO PALCO
    =========================================================== */
-let drag = null;
+/* Mouse: arrasta, clica e a rodinha dá zoom, como sempre. Toque: um dedo
+   arrasta (com embalo ao soltar), dois dedos fazem pinça — o ponto entre
+   os dedos fica embaixo dos dedos — e toque duplo no vazio aproxima.
+   Toque só vale como clique se o dedo quase não andou e nunca entrou um
+   segundo dedo: senão cada pinça ou arrasto abria uma ficha sem querer. */
+const dedos = new Map();     // pointerId -> posição no canvas
+let gesto = null;            // do primeiro dedo que encosta ao último que sai
+let embalo = null;           // velocidade do arrasto solto, px de tela por s
+let toqueAnterior = null;    // para reconhecer o toque duplo
+
+const noCanvas = e => {
+  const r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+};
+
+/** centro e abertura dos dedos, e o ponto de mundo embaixo do centro.
+    Refeito sempre que um dedo entra ou sai, senão a câmera dá um pulo */
+function referenciaGesto(t) {
+  let sx = 0, sy = 0;
+  for (const p of dedos.values()) { sx += p.x; sy += p.y; }
+  const n = dedos.size, cx = sx / n, cy = sy / n;
+  let ab = 0;
+  for (const p of dedos.values()) ab += Math.hypot(p.x - cx, p.y - cy);
+  const w = screenToWorld(cx, cy);
+  gesto.ref = { cx, cy, ab: ab / n, z: cam.z, wx: w.x, wy: w.y };
+  gesto.rastro = [{ x: cx, y: cy, t }];
+}
+
 cv.addEventListener('pointerdown', e => {
-  drag = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y, moved: false };
-  cv.setPointerCapture(e.pointerId); cv.classList.add('dragging');
-});
-cv.addEventListener('pointermove', e => {
-  if (drag) {
-    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
-    cam.x = drag.cx + dx / cam.z;
-    cam.y = drag.cy + dy / cam.z;
+  // no celular o painel ☰ abre por cima do palco: mexer no palco o fecha
+  const painel = document.getElementById('panel');
+  if (painel.classList.contains('open')) painel.classList.remove('open');
+  const p = noCanvas(e);
+  try { cv.setPointerCapture(e.pointerId); } catch (_) { /* dedo já saiu */ }
+  embalo = null;
+  // primeiro dedo de um toque novo: se algum dedo antigo ficou preso (o
+  // iOS às vezes não manda o pointerup), descarta, senão nada mais vira toque
+  if (e.isPrimary && dedos.size) { dedos.clear(); gesto = null; }
+  if (!gesto || !dedos.size) {
+    gesto = { toque: e.pointerType !== 'mouse', x0: p.x, y0: p.y, andou: false, varios: false };
+    cv.classList.add('dragging');
   }
-  hover(e);
+  dedos.set(e.pointerId, p);
+  if (dedos.size > 1) gesto.varios = true;
+  // dedo encostou: o zoom animado para onde está (a pinça parte dele)
+  if (gesto.toque) cam.tz = cam.z;
+  cam.ancora = null;
+  referenciaGesto(e.timeStamp);
 });
-cv.addEventListener('pointerup', e => {
-  if (drag && !drag.moved) {
-    const a = pick(e);
-    if (a) openAgent(a.a.id);
-    else {
-      if (noQuadroBmw(e)) { abrirBmw(); }
-      else if (naMesaDeReuniao(e)) { REUNIAO.abrir(); }
-      else {
-        const m = pegaMesa(e);
-        if (m && m.ator) abrirMonitor(m.ator.a);
-        else if (m) toast('Estação ' + m.slot.id + ' está vazia.');
-      }
+
+cv.addEventListener('pointermove', e => {
+  if (gesto && dedos.has(e.pointerId)) {
+    const p = noCanvas(e);
+    dedos.set(e.pointerId, p);
+    const lim = gesto.toque ? 10 : 4;
+    if (Math.abs(p.x - gesto.x0) + Math.abs(p.y - gesto.y0) > lim) gesto.andou = true;
+    let sx = 0, sy = 0;
+    for (const q of dedos.values()) { sx += q.x; sy += q.y; }
+    const n = dedos.size, cx = sx / n, cy = sy / n, R = gesto.ref;
+    if (n > 1 && R.ab > 2) {
+      let ab = 0;
+      for (const q of dedos.values()) ab += Math.hypot(q.x - cx, q.y - cy);
+      cam.z = cam.tz = limZ(R.z * (ab / n) / R.ab);
+    }
+    // o ponto de mundo que estava sob o centro dos dedos continua sob ele
+    cam.x = (cx - cw / 2) / cam.z - R.wx;
+    cam.y = (cy - ch / 2) / cam.z - R.wy;
+    // hora do evento, não a do tratamento: com o quadro pesado o dedo
+    // chega atrasado e o embalo sairia errado
+    const t = e.timeStamp;
+    gesto.rastro.push({ x: cx, y: cy, t });
+    while (gesto.rastro.length > 2 && t - gesto.rastro[0].t > 100) gesto.rastro.shift();
+  }
+  // dedo não tem "passar por cima": a etiqueta só atrapalharia o arrasto
+  if (e.pointerType === 'mouse' || e.pointerType === 'pen') hover(e);
+});
+
+function soltaDedo(e, cancelou) {
+  if (!dedos.has(e.pointerId)) return;
+  dedos.delete(e.pointerId);
+  if (dedos.size) { referenciaGesto(e.timeStamp); return; }
+  const g = gesto; gesto = null;
+  cv.classList.remove('dragging');
+  if (!g || cancelou) return;
+  if (!g.andou && !g.varios) { tocou(e, g); return; }
+  // soltou arrastando com um dedo só: a câmera segue no embalo
+  if (g.toque && !g.varios && g.rastro.length > 1) {
+    const a = g.rastro[0], b = g.rastro[g.rastro.length - 1];
+    const dt = (b.t - a.t) / 1000;
+    // o dedo parou antes de sair (mais de 90 ms sem andar): sem embalo
+    if (dt > 0.008 && e.timeStamp - b.t < 90) {
+      const vx = (b.x - a.x) / dt, vy = (b.y - a.y) / dt;
+      if (Math.hypot(vx, vy) > 250) embalo = { vx: Math.max(-4000, Math.min(4000, vx)),
+                                               vy: Math.max(-4000, Math.min(4000, vy)) };
     }
   }
-  drag = null; cv.classList.remove('dragging');
-});
+}
+cv.addEventListener('pointerup', e => soltaDedo(e, false));
+cv.addEventListener('pointercancel', e => soltaDedo(e, true));
 cv.addEventListener('pointerleave', () => { $('#tooltip').classList.add('hidden'); });
+
+/** clique do mouse ou toque parado: abre quem/o que estiver embaixo */
+function tocou(e, g) {
+  const a = pick(e);
+  if (a) { openAgent(a.a.id); return; }
+  if (noQuadroBmw(e)) { abrirBmw(); return; }
+  if (naMesaDeReuniao(e)) { REUNIAO.abrir(); return; }
+  const m = pegaMesa(e);
+  if (m && m.ator) { abrirMonitor(m.ator.a); return; }
+  if (m) { toast('Estação ' + m.slot.id + ' está vazia.'); return; }
+  if (!g.toque) return;
+  // toque duplo no vazio: aproxima no ponto tocado
+  const p = noCanvas(e), agora = performance.now(), ant = toqueAnterior;
+  if (ant && agora - ant.t < 350 && Math.hypot(p.x - ant.x, p.y - ant.y) < 40) {
+    zoomEm(p.x, p.y, cam.tz * 1.8);
+    toqueAnterior = null;
+  } else toqueAnterior = { t: agora, x: p.x, y: p.y };
+}
+
+/* No palco o navegador não pode fazer nada sozinho com o dedo: rolar a
+   página, dar zoom nela (gesturestart é o gesto próprio do Safari) ou
+   gerar um clique "fantasma" depois do toque — a ficha que o toque abre
+   aparece embaixo do dedo e esse clique cairia num botão dela. */
+['touchstart', 'touchmove', 'touchend'].forEach(t =>
+  cv.addEventListener(t, e => { if (e.cancelable) e.preventDefault(); }, { passive: false }));
+['gesturestart', 'gesturechange', 'gestureend'].forEach(t =>
+  document.addEventListener(t, e => {
+    if (e.target && e.target.closest && e.target.closest('#stage, #topbar')) e.preventDefault();
+  }, { passive: false }));
+
 cv.addEventListener('wheel', e => {
   e.preventDefault();
-  cam.tz = Math.max(0.1, Math.min(2.8, cam.tz * (e.deltaY < 0 ? 1.13 : 0.885)));
+  cam.ancora = null;
+  cam.tz = limZ(cam.tz * (e.deltaY < 0 ? 1.13 : 0.885));
 }, { passive: false });
 
 function pick(e) {
@@ -556,6 +820,11 @@ function pick(e) {
   let best = null, bestK = -1e9;
   for (const ac of actors.values()) {
     if (ac.hidden) continue;
+    // posição na tela calculada agora: sx/sy só são atualizados quando o
+    // boneco é desenhado, e quem está fora do quadro guardava a posição
+    // de antes do arrasto — o toque abria a ficha de alguém lá longe
+    const pw = ISO.toScreen(ac.x, ac.y, 0), ps = worldToScreen(pw.x, pw.y);
+    ac.sx = ps.x; ac.sy = ps.y;
     const dx = mx - ac.sx, dy = my - ac.sy;
     const hw = 22 * cam.z, hh = 74 * cam.z;
     if (dx > -hw && dx < hw && dy > -hh && dy < 8 * cam.z) {
@@ -739,7 +1008,12 @@ function renderAll() { renderTeam(); renderHire(); renderRooms(); renderStats();
 const modal = $('#modal'), mbody = $('#modal-body');
 const closeModal = () => modal.classList.add('hidden');
 $('#modal-x').addEventListener('click', closeModal);
-modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+// o segundo toque de um toque duplo cai no fundo da ficha que o primeiro
+// abriu: fundo tocado logo depois de abrir não fecha
+let modalAbertoEm = 0;
+modal.addEventListener('click', e => {
+  if (e.target === modal && performance.now() - modalAbertoEm > 450) closeModal();
+});
 
 
 /* O confirm() nativo é bloqueado em alguns navegadores embutidos: ele devolve
@@ -1514,6 +1788,7 @@ function abrirBmw() {
 // a ficha comum não usa o modal largo
 new MutationObserver(() => {
   if (modal.classList.contains('hidden')) modal.querySelector('.modal-card').classList.remove('largo');
+  else modalAbertoEm = performance.now();
 }).observe(modal, { attributes: true, attributeFilter: ['class'] });
 
 /* ===========================================================
@@ -1528,7 +1803,8 @@ function subirAoAndar() {
   entrada.classList.add('saindo');
   try { sessionStorage.setItem('nassa-entrou', '1'); } catch (e) { /* sem storage */ }
   setTimeout(() => { entrada.classList.add('hidden'); CIDADE.parar(); }, 600);
-  fit();
+  NIT.calmaAte = performance.now() + 2500;   // o andar volta a aparecer: caches esquentando
+  enquadraInicio();
 }
 $('#ent-subir').addEventListener('click', subirAoAndar);
 $('#btn-predio').addEventListener('click', abrirEntrada);
@@ -1586,8 +1862,8 @@ function painelVisivel(mostrar, guardar = true) {
 $('#btn-painel').addEventListener('click', () => painelVisivel($('#app').classList.contains('sem-painel')));
 try { if (localStorage.getItem('nassa-painel') === 'fechado') painelVisivel(false, false); } catch (e) { /* sem storage */ }
 
-$('#z-in').addEventListener('click',  () => cam.tz = Math.min(2.8, cam.tz * 1.2));
-$('#z-out').addEventListener('click', () => cam.tz = Math.max(0.1, cam.tz / 1.2));
+$('#z-in').addEventListener('click',  () => { cam.ancora = null; cam.tz = limZ(cam.tz * 1.2); });
+$('#z-out').addEventListener('click', () => { cam.ancora = null; cam.tz = limZ(cam.tz / 1.2); });
 $('#z-fit').addEventListener('click', fit);
 
 $('#opt-rgb').addEventListener('change',    e => opts.rgb = e.target.checked);
@@ -1663,10 +1939,12 @@ document.addEventListener('keydown', e => {
 SISTEMAS.atualizar();
 setInterval(() => SISTEMAS.atualizar(), 15000);
 // a equipe vem do disco, então o boot espera por ela antes de montar o andar
-ROSTER.load().then(() => { syncActors(); renderAll(); fit(); });
+ROSTER.load().then(() => { syncActors(); renderAll(); enquadraInicio(); });
 syncActors();
+{ const m = /[?&]nitidez=([\d.]+)/.exec(location.search); if (m) NIT.fixo = +m[1] || null; }
 resize();
-fit();
+enquadraInicio();
+NIT.calmaAte = performance.now() + 3000;     // a carga inicial monta todos os caches
 renderAll();
 tickClock();
 setInterval(tickClock, 15000);
@@ -1679,6 +1957,17 @@ requestAnimationFrame(frame);
 // atalho de depuração: __escritorio.olhar('Tati', 2.4) leva a câmera até alguém
 window.__escritorio = {
   cam, actors, fit, focusTile, abrirMonitor, fecharMonitor, abrirBmw, abrirEntrada,
+  enquadraInicio, zoomEm,
+  /** escala de desenho em uso agora (3 = densidade do iPhone) */
+  get escala() { return dpr; },
+  /** __escritorio.nitidez(2) trava a escala; nitidez(null) volta ao automático.
+      Sem argumento só conta como está. Também dá para abrir com ?nitidez=2 */
+  nitidez(v) {
+    if (v !== undefined) { NIT.fixo = v ? +v : null; NIT.janelas.length = 0; NIT.prova = null; resize(); }
+    return { escala: dpr, degraus: NIT.degraus.slice(), degrau: NIT.i, fixo: NIT.fixo,
+             telaDpr: window.devicePixelRatio || 1, canvas: [cv.width, cv.height], css: [cw, ch],
+             historico: NIT.historico.slice() };
+  },
   /** __escritorio.sistema("Tati") abre o monitor do sistema daquele agente */
   sistema(nome) {
     const a = ROSTER.all().find(a => a.name.toLowerCase().includes(String(nome).toLowerCase()));
@@ -1697,6 +1986,9 @@ window.__escritorio = {
 let jaEntrou = false;
 try { jaEntrou = sessionStorage.getItem('nassa-entrou') === '1'; } catch (e) { /* sem storage */ }
 if (!jaEntrou && !/[?&]direto\b/.test(location.search)) abrirEntrada();
-setTimeout(() => toast('Clique num boneco para abrir a ficha, ou no quadro da BMW na sala do chefe. Arraste para andar pelo andar.'), 900);
+const dedoNaTela = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+setTimeout(() => toast(dedoNaTela
+  ? 'Toque num boneco para abrir a ficha. Um dedo anda pelo andar, dois dedos dão zoom.'
+  : 'Clique num boneco para abrir a ficha, ou no quadro da BMW na sala do chefe. Arraste para andar pelo andar.'), 900);
 
 })();
