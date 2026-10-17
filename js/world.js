@@ -189,40 +189,67 @@ const WORLD = (() => {
   }
 
   /* ---- chão ----
-     O piso é fixo: 1632 losangos por quadro era desperdício puro. Ele é
-     pintado uma vez num canvas próprio e depois só copiado. A luz do
-     andar (decor-luz.js) parte desta mesma cópia.                        */
-  let pisoCache = null;
-  function montaPiso() {
+     O piso é fixo: 1632 losangos por quadro era desperdício puro. Com a luz
+     do andar (decor-luz.js) ele vira um mosaico de pedaços em cache, cada
+     um pintado daqui (desenhaPisoCru, só os tiles do recorte) na resolução
+     do zoom. Sem ela, drawFloor copia um canvas único em 1x, como antes. */
+  let caixaPiso = null;
+  /** retângulo do piso na tela, sem câmera (px de mundo): laje inclusa */
+  function pisoCaixa() {
+    if (caixaPiso) return caixaPiso;
     const x0 = ISO.toScreen(0, H - 1).x - ISO.TW;
     const x1 = ISO.toScreen(W - 1, 0).x + ISO.TW;
     const y0 = ISO.toScreen(0, 0).y - 4;
     const y1 = ISO.toScreen(W, H).y + LAJE + 8;
-    const cv = document.createElement('canvas');
-    cv.width  = Math.ceil(x1 - x0);
-    cv.height = Math.ceil(y1 - y0);
-    const c = cv.getContext('2d');
-    c.translate(-x0, -y0);
+    caixaPiso = { x: x0, y: y0, w: Math.ceil(x1 - x0), h: Math.ceil(y1 - y0) };
+    return caixaPiso;
+  }
 
-    desenhaLaje(c);
+  /** o piso cru (laje, tiles e a faixa azul) no ctx, com a transformação de
+      quem chama. r = {x0, y0, x1, y1} em px de mundo: só o que cai nele.  */
+  function desenhaPisoCru(c, r) {
+    const fora = (x0, y0, x1, y1) => r && (x1 < r.x0 || x0 > r.x1 || y1 < r.y0 || y0 > r.y1);
+    const HW = ISO.HW, TH = ISO.TH, P = ISO.toScreen;
+    // a laje só aparece na borda de baixo do andar
+    if (!fora(P(0, H).x - 4, P(0, H).y - 4, P(W, 0).x + 4, P(W, H).y + 16 + LAJE + 4)) desenhaLaje(c);
+    // contrapiso: o losango do andar inteiro, opaco, por baixo dos tiles. A
+    // emenda suavizada entre dois tiles deixava passar um fio do fundo; e,
+    // sem nenhum furo, o pedaço do miolo do andar dispensa a máscara da luz
+    // (decor-luz.js). Onde não há piso há parede, que cobre o contrapiso.
+    ISO.quad(c, [P(0, 0), P(W, 0), P(W, H), P(0, H)], '#1d2027');
 
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const k = kind[idx(x, y)];
         if (k !== FLOOR && k !== DOOR) continue;
-        const r = ROOMS[roomOf[idx(x, y)]] || ROOMS.corredor;
+        // caixa do losango (vértice de cima em (x-y)·HW, (x+y)·HH), com folga do traço
+        const sx = (x - y) * HW, sy = (x + y) * ISO.HH;
+        if (fora(sx - HW - 2, sy - 2, sx + HW + 2, sy + TH + 2)) continue;
+        const rm = ROOMS[roomOf[idx(x, y)]] || ROOMS.corredor;
         if (k === DOOR) { ISO.tile(c, x, y, '#3a3f49', 'rgba(255,255,255,.05)'); continue; }
-        pisoTile(c, x, y, r);
+        pisoTile(c, x, y, rm);
       }
     }
     // faixa de piso com o azul da marca: guia do elevador até as salas
     c.save();
     for (let x = 2; x <= 45; x++) {
+      const sx = (x - 20) * HW, sy = (x + 20) * ISO.HH;
+      if (fora(sx - HW - 2, sy - 2, sx + HW + 2, sy + TH + 2)) continue;
       if (walkable(x, 20) && roomAt(x, 20) === 'corredor')
         ISO.plane(c, x, 20.42, 1, .16, 0, ISO.rgba('#00b3ff', .22));
     }
     c.restore();
-    pisoCache = { cv, x: x0, y: y0 };
+  }
+
+  let pisoCache = null;
+  function montaPiso() {
+    const b = pisoCaixa();
+    const cv = document.createElement('canvas');
+    cv.width = b.w; cv.height = b.h;
+    const c = cv.getContext('2d');
+    c.translate(-b.x, -b.y);
+    desenhaPisoCru(c);
+    pisoCache = { cv, x: b.x, y: b.y };
   }
 
   /** hash estável por tile, para variar tábua e placa sem piscar */
@@ -332,8 +359,8 @@ const WORLD = (() => {
     c.restore();
   }
 
-  /** o piso cru, em cache. A luz do andar (decor-luz.js) parte dele para
-      montar o piso já iluminado; sem ela, drawFloor copia este mesmo. */
+  /** o piso cru inteiro num canvas em 1x: só para quando não há a luz do
+      andar (decor-luz.js monta o dele em pedaços, com desenhaPisoCru) */
   function pisoBase() {
     if (!pisoCache) montaPiso();
     return pisoCache;
@@ -373,12 +400,23 @@ const WORLD = (() => {
 
   const cacheGrad = new Map();
 
-  /* ---- texturas das paredes externas (pintadas uma vez) ---- */
+  /** px na tela por px de mundo no ctx (o maior dos dois eixos: dentro de
+      uma face de parede a transformação é inclinada) */
+  function escalaDe(ctx) {
+    const m = ctx.getTransform();
+    return Math.max(Math.hypot(m.a, m.b), Math.hypot(m.c, m.d));
+  }
+
+  /* ---- texturas das paredes externas (pintadas uma vez por resolução) ----
+     Em 2x fixo, o ripado da sala do chefe aparecia borrado na tela 3x do
+     celular. São pequenas (64 x 108 px de mundo): 1x, 2x e 4x cabem fácil. */
   const cacheTextura = new Map();
-  function textura(tipo) {
-    let cv = cacheTextura.get(tipo);
+  function textura(tipo, s) {
+    const ESC = s > 2.3 ? 4 : s > 1.15 ? 2 : 1;
+    const ck = tipo + ESC;
+    let cv = cacheTextura.get(ck);
     if (cv) return cv;
-    const T = ISO.TW, ESC = 2;
+    const T = ISO.TW;
     cv = document.createElement('canvas');
     cv.width = T * ESC; cv.height = WALL_H * ESC;
     const c = cv.getContext('2d');
@@ -405,7 +443,7 @@ const WORLD = (() => {
       }
       c.fillStyle = '#121214'; c.fillRect(0, WALL_H - 5, T, 5);
     }
-    cacheTextura.set(tipo, cv);
+    cacheTextura.set(ck, cv);
     return cv;
   }
 
@@ -467,7 +505,7 @@ const WORLD = (() => {
       const mat = occ ? null : material(x, y, f.o);
       if (mat === 'vidro') { janela(ctx, f.o, x, y, t); externa = true; continue; }
       if (mat) {
-        const tx = textura(mat);
+        const tx = textura(mat, escalaDe(ctx));
         wallFace(ctx, f.o, x, y, 1, WALL_H, (c) => c.drawImage(tx, 0, 0, ISO.TW, WALL_H));
         if (f.o === 'w') ISO.quad(ctx, f.pts, 'rgba(0,0,0,.28)');   // face lateral mais escura
         externa = true;
@@ -555,13 +593,23 @@ const WORLD = (() => {
       if (!cobre) continue;
 
       // recorte por clip custava caro; agora copia só a fatia da placa que
-      // é deste tile, direto do canvas em cache
+      // é deste tile, direto do canvas em cache (na resolução do zoom)
       const T = ISO.TW;
       const off = s.o === 'n' ? (x - s.x) * T
                               : (s.y + s.len - 1 - y) * T;
-      const cv = placaCanvas(s, t, rgbOn);
+      const m = ctx.getTransform();
+      const esc = nivelPlaca(s, Math.hypot(m.a, m.b));
+      const cv = placaCanvas(s, t, rgbOn, esc);
+      // a fatia corre em u, que anda meio px de tela por px; as bordas entre
+      // fatias são verticais na tela. Com a borda no meio de um pixel, as duas
+      // fatias o cobriam pela metade e passava um fio escuro da parede: a
+      // borda vai para o pixel inteiro (a vizinha faz a mesma conta)
+      const ox = s.o === 'n' ? ISO.toScreen(x, y + 1).x : ISO.toScreen(x + 1, y + 1).x;
+      const enc = u => m.b || m.c ? u : ((Math.round(m.a * (ox + u * ISO.HW / T) + m.e) - m.e) / m.a - ox) * T / ISO.HW;
+      const u0 = Math.max(-off, enc(0)), u1 = Math.min(s.len * T - off, enc(T));
+      if (u1 <= u0) continue;
       wallFace(ctx, s.o, x, y, 1, WALL_H, (c) =>
-        c.drawImage(cv, off * ESC_PLACA, 0, T * ESC_PLACA, WALL_H * ESC_PLACA, 0, 0, T, WALL_H));
+        c.drawImage(cv, (off + u0) * esc, 0, (u1 - u0) * esc, WALL_H * esc, u0, 0, u1 - u0, WALL_H));
     }
   }
 
@@ -620,20 +668,33 @@ const WORLD = (() => {
     logo: () => NASSA.pronto(NASSA.logo) ? 'ok' : 'carregando',
     logoParede: () => NASSA.pronto(NASSA.logo) ? 'ok' : 'carregando'
   };
-  const ESC_PLACA = 2;     // pintadas em 2x para continuarem nítidas no zoom
-
   /* Cada placa é pintada uma vez num canvas próprio e depois só é COPIADA
      para cada tile de parede. Antes ela era redesenhada inteira por tile —
      50 desenhos completos por quadro, vários com shadowBlur, e era daí que
-     vinha quase toda a lentidão.                                          */
-  const cachePlaca = new Map();
-  function placaCanvas(s, t, rgbOn) {
-    let c = cachePlaca.get(s);
+     vinha quase toda a lentidão.
+     A resolução acompanha o zoom (1x a 4x): em 2x fixo, a foto da BMW e a
+     camisa do Palmeiras ficavam borradas na tela 3x do celular. As que se
+     repintam sozinhas (equipe, CI/CD, eventos, quadro) param em 3x: lá cada
+     repintura custa o triplo de pixels. Um nível que fica uns segundos sem
+     aparecer é descartado.                                                */
+  const NIVEIS_PLACA = [1, 2, 3, 4];
+  const ESC_SOMBRA = 2;    // as sombras e brilhos das placas foram acertados em 2x
+  let kSombra = 1;         // shadowBlur não segue a escala do ctx: corrige à mão
+  function nivelPlaca(s, escala) {
+    const teto = PLACA_FIXA[s.kind] ? 4 : 3;
+    for (const n of NIVEIS_PLACA) if (n >= teto || n * 1.12 >= escala) return n;
+    return teto;
+  }
+  const cachePlaca = new Map();      // placa -> { nível: { cv, ctx, t, rgb, ver, uso } }
+  let placasVarridas = 0;
+  function placaCanvas(s, t, rgbOn, esc = ESC_SOMBRA) {
+    let niveis = cachePlaca.get(s);
+    if (!niveis) cachePlaca.set(s, niveis = {});
+    let c = niveis[esc];
     if (!c) {
       const cv = document.createElement('canvas');
-      cv.width = Math.ceil(s.len * ISO.TW * ESC_PLACA); cv.height = WALL_H * ESC_PLACA;
-      c = { cv, ctx: cv.getContext('2d'), t: -1e9, rgb: null, ver: null };
-      cachePlaca.set(s, c);
+      cv.width = Math.ceil(s.len * ISO.TW * esc); cv.height = WALL_H * esc;
+      c = niveis[esc] = { cv, ctx: cv.getContext('2d'), t: -1e9, rgb: null, ver: null, uso: 0 };
     }
     const fixa = PLACA_FIXA[s.kind];
     const ver = fixa ? fixa() : null;
@@ -643,8 +704,20 @@ const WORLD = (() => {
       c.t = t; c.rgb = rgbOn; c.ver = ver;
       c.ctx.setTransform(1, 0, 0, 1, 0, 0);
       c.ctx.clearRect(0, 0, c.cv.width, c.cv.height);
-      c.ctx.setTransform(ESC_PLACA, 0, 0, ESC_PLACA, 0, 0);
+      c.ctx.setTransform(esc, 0, 0, esc, 0, 0);
+      kSombra = esc / ESC_SOMBRA;
       pintaPlaca(c.ctx, s, s.len * ISO.TW, t, rgbOn);
+      kSombra = 1;
+    }
+    const agora = performance.now();
+    c.uso = agora;
+    if (agora - placasVarridas > 2000) {
+      placasVarridas = agora;
+      for (const nv of cachePlaca.values()) for (const k in nv) {
+        if (agora - nv[k].uso < 5000) continue;
+        nv[k].cv.width = nv[k].cv.height = 0;      // devolve a memória já (o Safari demora)
+        delete nv[k];
+      }
     }
     return c.cv;
   }
@@ -652,7 +725,8 @@ const WORLD = (() => {
   /* ---- logos e painéis nas paredes altas ---- */
   function drawSigns(ctx, t, rgbOn, lista) {
     for (const s of (lista || SIGNS)) {
-      const cv = placaCanvas(s, t, rgbOn);
+      const esc = nivelPlaca(s, escalaDe(ctx));
+      const cv = placaCanvas(s, t, rgbOn, esc);
       wallFace(ctx, s.o, s.x, s.y, s.len, WALL_H, (c) => c.drawImage(cv, 0, 0, s.len * ISO.TW, WALL_H));
     }
   }
@@ -695,7 +769,7 @@ const WORLD = (() => {
       c.fillText(cel.r, cx + 8, y0 + 36);
       c.font = "700 20px 'Barlow', sans-serif";
       c.fillStyle = cel.cor;
-      if (rgbOn) { c.shadowColor = ISO.rgba(cel.cor, .8); c.shadowBlur = 12; }
+      if (rgbOn) { c.shadowColor = ISO.rgba(cel.cor, .8); c.shadowBlur = 12 * kSombra; }
       c.fillText(cel.v, cx + 8, y0 + 56);
       c.shadowBlur = 0;
       const amp = rgbOn ? (.45 + .55 * Math.abs(Math.sin(t * 1.1 + i))) : .7;
@@ -716,7 +790,7 @@ const WORLD = (() => {
     c.textBaseline = 'middle'; c.textAlign = 'left';
     c.font = "700 11px 'Barlow Semi Condensed', sans-serif";
     c.fillStyle = '#38bdf8'; c.letterSpacing = '2px';
-    if (rgbOn) { c.shadowColor = 'rgba(56,189,248,.7)'; c.shadowBlur = 10; }
+    if (rgbOn) { c.shadowColor = 'rgba(56,189,248,.7)'; c.shadowBlur = 10 * kSombra; }
     c.fillText('PRÓXIMOS EVENTOS', x0 + 12, y0 + 13);
     c.shadowBlur = 0; c.letterSpacing = '0px';
     c.strokeStyle = 'rgba(255,255,255,.09)';
@@ -822,7 +896,7 @@ const WORLD = (() => {
       const maxW = len - 60, maxH = 48;
       const k = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
       const w = img.naturalWidth * k, h = img.naturalHeight * k;
-      if (rgbOn) { c.shadowColor = 'rgba(0,179,255,.55)'; c.shadowBlur = 14; }
+      if (rgbOn) { c.shadowColor = 'rgba(0,179,255,.55)'; c.shadowBlur = 14 * kSombra; }
       c.drawImage(img, (len - w) / 2, 51 - h / 2, w, h);
       c.shadowBlur = 0;
     } else {
@@ -901,7 +975,7 @@ const WORLD = (() => {
 
     // moldura: caixa preta funda, com sombra na parede
     c.save();
-    c.shadowColor = 'rgba(0,0,0,.55)'; c.shadowBlur = 8; c.shadowOffsetX = 4; c.shadowOffsetY = 5;
+    c.shadowColor = 'rgba(0,0,0,.55)'; c.shadowBlur = 8 * kSombra; c.shadowOffsetX = 4 * kSombra; c.shadowOffsetY = 5 * kSombra;
     c.fillStyle = '#121316'; ISO.rrect(c, fx, fy, fw, fh, 1.6); c.fill();
     c.restore();
     const gm = c.createLinearGradient(0, fy, 0, fy + fh);
@@ -942,7 +1016,7 @@ const WORLD = (() => {
     gv.addColorStop(0, '#0a5b2d'); gv.addColorStop(.32, '#0f7a3c');
     gv.addColorStop(.55, '#138a47'); gv.addColorStop(1, '#09562a');
     c.save();
-    c.shadowColor = 'rgba(30,20,10,.42)'; c.shadowBlur = 5; c.shadowOffsetY = 3;
+    c.shadowColor = 'rgba(30,20,10,.42)'; c.shadowBlur = 5 * kSombra; c.shadowOffsetY = 3 * kSombra;
     c.fillStyle = gv; c.fill(corpo);
     c.restore();
     c.save();
@@ -1051,7 +1125,7 @@ const WORLD = (() => {
     const w = img.naturalWidth * k, h = img.naturalHeight * k;
     c.save();
     c.globalAlpha = .9;
-    c.shadowColor = 'rgba(0,0,0,.6)'; c.shadowBlur = 4; c.shadowOffsetY = 2;
+    c.shadowColor = 'rgba(0,0,0,.6)'; c.shadowBlur = 4 * kSombra; c.shadowOffsetY = 2 * kSombra;
     c.drawImage(img, (len - w) / 2, 46 - h / 2, w, h);
     c.restore();
   }
@@ -1067,7 +1141,7 @@ const WORLD = (() => {
     c.font = `700 ${tam}px 'Barlow', sans-serif`;
     while (tam > 10 && c.measureText(nome).width > len - 36) { tam--; c.font = `700 ${tam}px 'Barlow', sans-serif`; }
     c.fillStyle = '#ffffff';
-    if (rgbOn) { c.shadowColor = 'rgba(124,108,255,.8)'; c.shadowBlur = 14; }
+    if (rgbOn) { c.shadowColor = 'rgba(124,108,255,.8)'; c.shadowBlur = 14 * kSombra; }
     c.fillText(nome, cx, cy - 6);
     c.shadowBlur = 0;
     if (E.subtitulo) {
@@ -1111,6 +1185,6 @@ const WORLD = (() => {
     SIGNS, signDepth,
     kindAt, roomAt, isWall, walkable, setBlocked, wallOccludes,
     drawFloor, drawWallTile, drawDoorTile, drawSigns, drawDecals, drawRoomLabels,
-    wallFace, material, pontoNaPlaca, LAJE, pisoBase
+    wallFace, material, pontoNaPlaca, LAJE, pisoBase, pisoCaixa, desenhaPisoCru
   };
 })();

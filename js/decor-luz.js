@@ -4,9 +4,10 @@
    O andar era chapado: o piso tinha a mesma cor em todo canto, de dia
    e de noite. Aqui a luz vira um MAPA pintado uma vez, em coordenadas
    de mundo, e "assado" junto com o piso (tapetes e nomes das salas
-   inclusos): cada quadro continua sendo uma cópia só do piso, como
-   antes, e a luz sai de graça. O mapa só é refeito quando muda a faixa
-   da hora (o sol anda, a noite cai) — nunca por quadro.
+   inclusos) num mosaico de pedaços em cache, cada um na resolução do
+   zoom (ver PISO ILUMINADO): cada quadro só copia pedaços prontos, e a
+   luz sai de graça. O mapa só é refeito quando muda a faixa da hora (o
+   sol anda, a noite cai) — nunca por quadro.
 
    Como o mapa age, em duas camadas:
    · GANHO, aplicado com 'overlay': cinza 50% não muda nada; abaixo
@@ -317,7 +318,7 @@ const LUZ = (() => {
   let ganho = null, soma = null;
 
   /** prepara um canvas do mapa com a transformação de tile: (x,y) do
-      andar -> pixel do mapa, já na escala ESC */
+      andar -> pixel do mapa, já na escala ESC. base = caixa do piso */
   function emTile(c, base) {
     c.setTransform(ESC * ISO.HW, ESC * ISO.HH, -ESC * ISO.HW, ESC * ISO.HH, -base.x * ESC, -base.y * ESC);
   }
@@ -330,7 +331,7 @@ const LUZ = (() => {
 
   function pintaMapa(base, d) {
     const n = NASSA.noite(d);
-    const W = Math.ceil(base.cv.width * ESC), H = Math.ceil(base.cv.height * ESC);
+    const W = Math.ceil(base.w * ESC), H = Math.ceil(base.h * ESC);
     for (const cv of [ganho, soma]) { if (cv.width !== W) cv.width = W; if (cv.height !== H) cv.height = H; }
     const m = ganho.getContext('2d'), b = soma.getContext('2d');
     for (const c of [m, b]) {
@@ -443,10 +444,53 @@ const LUZ = (() => {
 
   /* ===========================================================
      PISO ILUMINADO (o que o app desenha por quadro)
+     Era UM canvas do andar inteiro em 1x: na tela 3x do celular, e de perto
+     em qualquer tela, ele aparecia ampliado e borrado. Agora é um mosaico
+     de pedaços de TAM px, e cada nível de zoom (NIVEIS) tem os seus: piso
+     cru, tapetes e nomes das salas saem vetoriais, nítidos na escala da
+     tela, e a luz entra por cima (o mapa é macio: continua em meia
+     resolução e só é ampliado).
+     · Só os pedaços que aparecem são pintados, poucos por quadro (ORC_*):
+       enquanto um falta, aparece o mesmo trecho de outro nível já pronto,
+       ou do nível RESERVA, que cobre o andar todo e nunca sai da memória.
+     · Com o zoom andando (pinça, animação), pintar um nível a cada degrau
+       era o que pesava: o nível em uso segue, ampliado ou reduzido, e o
+       certo entra quando a escala para por QUIETO ms. Se o nível em uso
+       ficou longe demais (o zoom grande saindo da visão geral), o da vez é
+       pintado, um pedaço por quadro.
+     · Câmera parada = nada a pintar: o quadro só copia pedaços prontos.
+     · Pedaço que fica VIDA ms sem aparecer é descartado, e há um teto de
+       memória (sai o usado há mais tempo): no iPhone a memória de canvas
+       é curta e, passando dela, o Safari recarrega a página.
+     · Quando a hora troca o mapa de luz, os pedaços ficam velhos: seguem
+       aparecendo até serem repintados, um por quadro.
      =========================================================== */
-  let aceso = null;           // { cv, x, y, chave }
-  let checado = -1e9, sujo = false;
+  const TAM = 512;                                // lado do pedaço, em px do nível
+  const NIVEIS = [.5, 1, 1.5, 2, 3, 4, 5, 6, 8];   // px do pedaço por px de mundo
+  const FOLGA = 1.1;      // ampliar até 10% não se vê, e evita subir de nível à toa
+  const RESERVA = .5;     // cobre o andar todo e fica sempre pronto
+  const VIDA = 5000;      // ms sem aparecer até o pedaço ser descartado
+  // pedaços novos por quadro: tempo e quantidade (arrastando, só um: a borda
+  // que entra na tela aparece um instante no nível de reserva)
+  const ORC_MS = 5, ORC_N = 2;
+  const QUIETO = 250;     // ms de escala parada até trocar de nível e pintar
+  const MB = 1048576;
+
+  let caixa = null;       // { x, y, w, h } do piso em px de mundo (WORLD.pisoCaixa)
+  let noPiso = null;      // o que é chão (tapetes), com a caixa na tela
+  let contorno = null;    // hexágono do andar + laje: fora dele não há piso
+  let rascunho = null;    // canvas de trabalho: o piso cru antes da luz, e a máscara
+  const pedacos = new Map();  // 'nível|i|j' -> { L, x, y, x1, y1, w, h, cv, ger, uso }
+  const vazios = new Map();   // mesma chave -> o pedaço não encosta no andar
+  const livres = [];          // canvases soltos, para reaproveitar
+  let ger = 0;                // geração do mapa de luz: pedaço de outra está velho
+  let bytes = 0, varridoEm = 0;
+  let aceso = false, chaveAtual = '', checado = -1e9, sujo = false;
+  let escalaAntes = 0, mexeuEm = -1e9, nivelVisto = 0, eAntes = 0, fAntes = 0;
   const NOITE_FAIXAS = 12;    // degraus do anoitecer; mesma conta do céu (nassa.js)
+  // níveis de reserva para cada nível, do mais parecido ao menos (empate: o maior)
+  const ORDEM = new Map(NIVEIS.map(L => [L, NIVEIS.filter(n => n !== L)
+    .sort((a, b) => Math.abs(Math.log(a / L)) - Math.abs(Math.log(b / L)) || b - a)]));
 
   /** a faixa da hora: o degrau do anoitecer e, enquanto há sol, a meia hora
       (a mancha anda). De noite fechada o mapa não muda, nada a refazer */
@@ -455,54 +499,291 @@ const LUZ = (() => {
     return Math.round(NASSA.noite(d) * NOITE_FAIXAS) + '|' + (sol(d) ? Math.round(h * 2) : '-');
   }
 
-  function assa(d, k) {
-    const t0 = performance.now();
-    const base = WORLD.pisoBase();
-    if (!ganho) { ganho = document.createElement('canvas'); soma = document.createElement('canvas'); }
-    if (!aceso) aceso = { cv: document.createElement('canvas'), x: base.x, y: base.y, chave: '' };
-    const cv = aceso.cv;
-    if (cv.width !== base.cv.width) cv.width = base.cv.width;
-    if (cv.height !== base.cv.height) cv.height = base.cv.height;
-    const c = cv.getContext('2d');
+  function nivel(s) {
+    // abaixo de 1x não há folga: a reserva já é meia resolução, e ampliá-la
+    // mesmo um pouco amolecia a visão geral no monitor comum
+    for (const L of NIVEIS) if (L * (L < 1 ? 1 : FOLGA) >= s) return L;
+    return NIVEIS[NIVEIS.length - 1];
+  }
+  const colunas = L => Math.ceil(Math.ceil(caixa.w * L) / TAM);
+  const linhas = L => Math.ceil(Math.ceil(caixa.h * L) / TAM);
+  const chaveDe = (L, i, j) => L + '|' + i + '|' + j;
 
-    // piso cru + o que é chão (tapetes) + os nomes das salas
-    c.setTransform(1, 0, 0, 1, 0, 0);
-    c.globalCompositeOperation = 'copy';
-    c.drawImage(base.cv, 0, 0);
-    c.globalCompositeOperation = 'source-over';
-    c.setTransform(1, 0, 0, 1, -base.x, -base.y);
-    for (const o of FURN.items) if (noChao(o)) FURN.drawItem(c, o, 0);
-    WORLD.drawRoomLabels(c);
-    c.setTransform(1, 0, 0, 1, 0, 0);
+  /** onde o pedaço (i, j) do nível L cai no mundo. As bordas saem da mesma
+      conta dos vizinhos: na tela elas arredondam para o mesmo pixel */
+  function geo(L, i, j) {
+    const w = Math.min(TAM, Math.ceil(caixa.w * L) - i * TAM);
+    const h = Math.min(TAM, Math.ceil(caixa.h * L) - j * TAM);
+    return { w, h, x: caixa.x + i * TAM / L, y: caixa.y + j * TAM / L,
+             x1: caixa.x + (i * TAM + w) / L, y1: caixa.y + (j * TAM + h) / L };
+  }
 
-    // luz por cima, e o que vazou para fora do piso volta a ser transparente
-    pintaMapa(base, d);
+  /* o andar com a laje é um hexágono convexo na tela: o pedaço que não
+     encosta nele (os cantos do retângulo) nem chega a ser criado */
+  function montaContorno() {
+    const W = WORLD.W, H = WORLD.H, z = -16 - WORLD.LAJE;
+    const pts = [P(0, 0), P(W, 0), P(W, 0, z), P(W, H, z), P(0, H, z), P(0, H)];
+    const eixos = pts.map((a, k) => { const b = pts[(k + 1) % pts.length]; return [a.y - b.y, b.x - a.x]; });
+    eixos.push([1, 0], [0, 1]);
+    contorno = eixos.map(([ex, ey]) => {
+      let lo = Infinity, hi = -Infinity;
+      for (const p of pts) { const v = p.x * ex + p.y * ey; lo = Math.min(lo, v); hi = Math.max(hi, v); }
+      return { ex, ey, lo, hi };
+    });
+  }
+  function ehVazio(L, i, j) {
+    const k = chaveDe(L, i, j);
+    let v = vazios.get(k);
+    if (v !== undefined) return v;
+    const g = geo(L, i, j), F = 4;          // folga: traço e borda suavizada
+    const x0 = g.x - F, x1 = g.x1 + F, y0 = g.y - F, y1 = g.y1 + F;
+    v = false;
+    for (const e of contorno) {             // eixo separador: projeções sem sobreposição
+      const a = Math.min(x0 * e.ex, x1 * e.ex) + Math.min(y0 * e.ey, y1 * e.ey);
+      const b = Math.max(x0 * e.ex, x1 * e.ex) + Math.max(y0 * e.ey, y1 * e.ey);
+      if (b < e.lo || a > e.hi) { v = true; break; }
+    }
+    vazios.set(k, v);
+    return v;
+  }
+
+  function canvasLivre(w, h) {
+    const cv = livres.pop() || document.createElement('canvas');
+    if (cv.width !== w) cv.width = w;
+    if (cv.height !== h) cv.height = h;
+    return cv;
+  }
+  function solta(k, p) {
+    pedacos.delete(k);
+    bytes -= p.w * p.h * 4;
+    if (livres.length < 3) livres.push(p.cv);
+    else p.cv.width = p.cv.height = 0;      // devolve a memória já: o Safari demora a recolher
+  }
+
+  /** o pedaço cai todo dentro do losango do andar? Lá o contrapiso deixa o
+      piso cru opaco (ver WORLD.desenhaPisoCru) e a máscara é dispensável */
+  function noMiolo(g) {
+    const F = 2;
+    for (const [x, y] of [[g.x - F, g.y - F], [g.x1 + F, g.y - F], [g.x - F, g.y1 + F], [g.x1 + F, g.y1 + F]]) {
+      const t = ISO.toTile(x, y);
+      if (t.x < .05 || t.y < .05 || t.x > WORLD.W - .05 || t.y > WORLD.H - .05) return false;
+    }
+    return true;
+  }
+
+  /** pinta (ou repinta) um pedaço: piso cru + tapetes + nomes, a luz por
+      cima e, na borda do andar, a máscara do piso cru de novo (o miolo é
+      opaco e pula o rascunho e a máscara: duas passadas a menos) */
+  function pinta(L, i, j, k, p) {
+    if (!p) {
+      const g = geo(L, i, j);
+      p = Object.assign(g, { L, cv: canvasLivre(g.w, g.h), ger: -1, uso: 0, miolo: noMiolo(g) });
+      pedacos.set(k, p);
+      bytes += p.w * p.h * 4;
+    }
+    const c = p.cv.getContext('2d');
+    let r = c;
+    if (!p.miolo) {
+      if (!rascunho) { rascunho = document.createElement('canvas'); rascunho.width = rascunho.height = TAM; }
+      r = rascunho.getContext('2d');
+      r.setTransform(1, 0, 0, 1, 0, 0);
+      r.clearRect(0, 0, p.w, p.h);
+    }
+    r.setTransform(L, 0, 0, L, -p.x * L, -p.y * L);
+    const R = { x0: p.x, y0: p.y, x1: p.x1, y1: p.y1 };
+    WORLD.desenhaPisoCru(r, R);
+    for (const q of noPiso) if (q.x1 > R.x0 && q.x0 < R.x1 && q.y1 > R.y0 && q.y0 < R.y1) FURN.drawItem(r, q.o, 0);
+    WORLD.drawRoomLabels(r);
+
+    if (!p.miolo) {
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.globalCompositeOperation = 'copy';
+      c.drawImage(rascunho, 0, 0, p.w, p.h, 0, 0, p.w, p.h);
+    }
+    // o mapa inteiro, na transformação que o leva a este pedaço: a amostragem
+    // não para na borda do pedaço, então não sobra degrau entre vizinhos
+    const e = L / ESC;
+    c.setTransform(e, 0, 0, e, (caixa.x - p.x) * L, (caixa.y - p.y) * L);
     c.imageSmoothingEnabled = true;
     c.globalCompositeOperation = 'overlay';
-    c.drawImage(ganho, 0, 0, ganho.width, ganho.height, 0, 0, cv.width, cv.height);
+    c.drawImage(ganho, 0, 0);
     c.globalCompositeOperation = 'screen';
-    c.drawImage(soma, 0, 0, soma.width, soma.height, 0, 0, cv.width, cv.height);
-    c.globalCompositeOperation = 'destination-in';
-    c.drawImage(base.cv, 0, 0);
+    c.drawImage(soma, 0, 0);
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    if (!p.miolo) {
+      // o que vazou para fora do piso volta a ser transparente
+      c.globalCompositeOperation = 'destination-in';
+      c.drawImage(rascunho, 0, 0, p.w, p.h, 0, 0, p.w, p.h);
+    }
     c.globalCompositeOperation = 'source-over';
-    aceso.chave = k;
+    p.ger = ger;
+    return p;
+  }
+
+  function assa(d, k) {
+    const t0 = performance.now();
+    if (!caixa) {
+      caixa = WORLD.pisoCaixa();
+      montaContorno();
+      noPiso = FURN.items.filter(noChao).map(o => {
+        const w = o.w || 1, dd = o.d || 1;
+        return { o, x0: P(o.x, o.y + dd).x - 16, x1: P(o.x + w, o.y).x + 16,
+                 y0: P(o.x, o.y).y - 16, y1: P(o.x + w, o.y + dd).y + 16 };
+      });
+    }
+    if (!ganho) { ganho = document.createElement('canvas'); soma = document.createElement('canvas'); }
+    pintaMapa(caixa, d);
+    ger++;
+    // a reserva sai inteira já: é ela que aparece enquanto falta pedaço
+    for (let j = 0; j < linhas(RESERVA); j++)
+      for (let i = 0; i < colunas(RESERVA); i++) {
+        if (ehVazio(RESERVA, i, j)) continue;
+        const kk = chaveDe(RESERVA, i, j);
+        pinta(RESERVA, i, j, kk, pedacos.get(kk));
+      }
+    chaveAtual = k;
+    aceso = true;
     estado.msAssar = performance.now() - t0;
   }
 
+  /** copia o trecho [x0,x1] x [y0,y1] (px de mundo) do pedaço p para a tela,
+      com as bordas no pixel inteiro: pedaços vizinhos encostam sem fresta */
+  function copia(ctx, m, p, x0, y0, x1, y1) {
+    const X0 = Math.round(m.a * x0 + m.e), X1 = Math.round(m.a * x1 + m.e);
+    const Y0 = Math.round(m.d * y0 + m.f), Y1 = Math.round(m.d * y1 + m.f);
+    if (X1 <= X0 || Y1 <= Y0) return;
+    const L = p.L;
+    // origem dentro do canvas: com sobra, o Safari antigo não desenhava nada
+    const sx = Math.max(0, (x0 - p.x) * L), sy = Math.max(0, (y0 - p.y) * L);
+    const sw = Math.min(p.w - sx, (x1 - x0) * L), sh = Math.min(p.h - sy, (y1 - y0) * L);
+    if (sw <= 0 || sh <= 0) return;
+    ctx.drawImage(p.cv, sx, sy, sw, sh, X0, Y0, X1 - X0, Y1 - Y0);
+  }
+
+  /** os pedaços prontos do nível L que cobrem o retângulo, ou null se falta algum */
+  function cobertura(L, x0, y0, x1, y1) {
+    const i0 = Math.max(0, Math.floor((x0 - caixa.x) * L / TAM));
+    const i1 = Math.min(colunas(L) - 1, Math.floor(((x1 - caixa.x) * L - 1e-6) / TAM));
+    const j0 = Math.max(0, Math.floor((y0 - caixa.y) * L / TAM));
+    const j1 = Math.min(linhas(L) - 1, Math.floor(((y1 - caixa.y) * L - 1e-6) / TAM));
+    const ps = [];
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        if (ehVazio(L, i, j)) continue;
+        const p = pedacos.get(chaveDe(L, i, j));
+        if (!p) return null;
+        ps.push(p);
+      }
+    return ps;
+  }
+
+  /** no lugar de um pedaço que ainda falta: o mesmo trecho de outro nível */
+  function quebraGalho(ctx, m, L, g, agora) {
+    for (const Lr of ORDEM.get(L)) {
+      const ps = cobertura(Lr, g.x, g.y, g.x1, g.y1);
+      if (!ps) continue;
+      for (const p of ps) {
+        p.uso = agora;
+        copia(ctx, m, p, Math.max(g.x, p.x), Math.max(g.y, p.y), Math.min(g.x1, p.x1), Math.min(g.y1, p.y1));
+      }
+      return;
+    }
+  }
+
+  /** descarta o que não aparece há VIDA ms e, passando do teto, o usado há
+      mais tempo — nunca a reserva nem o que apareceu neste quadro */
+  function varre(agora, teto) {
+    for (const [k, p] of pedacos) if (p.L !== RESERVA && agora - p.uso > VIDA) solta(k, p);
+    if (bytes > teto) {
+      const fila = [];
+      for (const [k, p] of pedacos) if (p.L !== RESERVA && p.uso < agora) fila.push([k, p]);
+      fila.sort((a, b) => a[1].uso - b[1].uso);
+      for (const [k, p] of fila) { if (bytes <= teto) break; solta(k, p); }
+    }
+    estado.mosaico = { pedacos: pedacos.size, MB: +(bytes / MB).toFixed(1) };
+  }
+
+  function mosaico(ctx, agora) {
+    const m = ctx.getTransform();
+    if (m.b || m.c || m.a <= 0 || m.d <= 0) {
+      // a câmera do app não gira; se um dia girar, vai a reserva sem encaixe
+      for (const p of pedacos.values()) if (p.L === RESERVA) ctx.drawImage(p.cv, p.x, p.y, p.x1 - p.x, p.y1 - p.y);
+      return;
+    }
+    const s = Math.max(m.a, m.d);
+    if (Math.abs(s - escalaAntes) > s * .002) mexeuEm = agora;
+    escalaAntes = s;
+    // zoom andando: segura o nível em uso enquanto ele não ficar longe demais
+    const andando = agora - mexeuEm < QUIETO;
+    let L = nivel(s);
+    const segura = andando && nivelVisto && s / nivelVisto < 1.7 && s / nivelVisto > .45;
+    if (segura) L = nivelVisto;
+    nivelVisto = estado.nivel = L;
+    const arrastando = m.e !== eAntes || m.f !== fAntes;
+    eAntes = m.e; fAntes = m.f;
+    const cw = ctx.canvas.width, ch = ctx.canvas.height;
+    // a tela em px de mundo
+    const vx0 = -m.e / m.a, vx1 = (cw - m.e) / m.a, vy0 = -m.f / m.d, vy1 = (ch - m.f) / m.d;
+    const i0 = Math.max(0, Math.floor((vx0 - caixa.x) * L / TAM)), i1 = Math.min(colunas(L) - 1, Math.floor((vx1 - caixa.x) * L / TAM));
+    const j0 = Math.max(0, Math.floor((vy0 - caixa.y) * L / TAM)), j1 = Math.min(linhas(L) - 1, Math.floor((vy1 - caixa.y) * L / TAM));
+    const mx = (vx0 + vx1) / 2, my = (vy0 + vy1) / 2;
+    const vis = [], faltam = [];
+    let velho = null, dVelho = Infinity;
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        if (ehVazio(L, i, j)) continue;
+        const k = chaveDe(L, i, j), v = { i, j, k, p: pedacos.get(k) };
+        vis.push(v);
+        if (v.p && v.p.ger === ger) continue;
+        const dx = caixa.x + (i + .5) * TAM / L - mx, dy = caixa.y + (j + .5) * TAM / L - my;
+        const dist = dx * dx + dy * dy;
+        if (!v.p) faltam.push([dist, v]);
+        else if (dist < dVelho) { dVelho = dist; velho = v; }
+      }
+    // o que falta, do meio da tela para fora; sem falta, um velho por quadro
+    if (segura) { /* no zoom não se pinta: aparece o que já existe */ }
+    else if (faltam.length) {
+      faltam.sort((a, b) => a[0] - b[0]);
+      const t0 = performance.now();
+      for (let n = 0; n < faltam.length && n < (arrastando || andando ? 1 : ORC_N); n++) {
+        if (n && performance.now() - t0 > ORC_MS) break;
+        const v = faltam[n][1];
+        v.p = pinta(L, v.i, v.j, v.k, null);
+      }
+    } else if (velho) pinta(L, velho.i, velho.j, velho.k, velho.p);
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    for (const v of vis) {
+      if (v.p) { v.p.uso = agora; copia(ctx, m, v.p, v.p.x, v.p.y, v.p.x1, v.p.y1); }
+      else quebraGalho(ctx, m, L, geo(L, v.i, v.j), agora);
+    }
+    ctx.restore();
+
+    // teto: umas 3,5 telas de pedaços, entre 24 e 64 MB
+    const teto = Math.min(64 * MB, Math.max(24 * MB, cw * ch * 4 * 3.5));
+    if (agora - varridoEm > 500 || bytes > teto) { varridoEm = agora; varre(agora, teto); }
+  }
+
   /** desenha o piso já iluminado (no lugar do WORLD.drawFloor) */
+  let tentaDeNovo = 0;
   function piso(ctx) {
     const agora = performance.now();
-    if (sujo || !aceso || agora - checado > 3000) {
+    if ((sujo || !aceso || agora - checado > 3000) && agora >= tentaDeNovo) {
       checado = agora;
       const d = new Date(), k = chave(d);
       estado.noite = NASSA.noite(d);
-      if (sujo || !aceso || k !== aceso.chave) {
+      if (sujo || !aceso || k !== chaveAtual) {
         sujo = false;
         try { assa(d, k); }
-        catch (e) { console.warn('luz: piso sem iluminação', e); aceso = null; sujo = false; checado = agora + 6e4; }
+        catch (e) { console.warn('luz: piso sem iluminação', e); aceso = false; tentaDeNovo = agora + 6e4; }
       }
     }
-    if (aceso) { ctx.drawImage(aceso.cv, aceso.x, aceso.y); return; }
+    if (aceso) {
+      try { mosaico(ctx, agora); return; }
+      catch (e) { console.warn('luz: mosaico do piso falhou', e); aceso = false; tentaDeNovo = agora + 6e4; }
+    }
     // sem o mapa, o piso cru: e os tapetes e nomes, que o app deixou para cá
     WORLD.drawFloor(ctx);
     for (const o of FURN.items) if (noChao(o)) FURN.drawItem(ctx, o, 0);
@@ -515,7 +796,7 @@ const LUZ = (() => {
     document.fonts.ready && document.fonts.ready.then(() => { sujo = true; });
   }
 
-  const estado = { noite: NASSA.noite(), msAssar: 0 };
+  const estado = { noite: NASSA.noite(), msAssar: 0, mosaico: null, nivel: 0 };
 
   /* ===========================================================
      LUMINÁRIAS PENDENTES
