@@ -1633,8 +1633,8 @@ function openQuadro() {
   const ideias = QUADRO.ideias(), eventos = QUADRO.eventos();
   mbody.innerHTML = `
     <h3 style="font-family:var(--f-display);margin:0 0 3px">📌 Quadro</h3>
-    <p class="hint" style="margin-bottom:14px">O que você anotar aqui aparece no quadro branco e no painel de eventos da sala do chefe.</p>
-    <div class="frow"><label>Nova ideia para o quadro branco</label>
+    <p class="hint" style="margin-bottom:14px">O que você anotar aqui aparece no quadro de ideias e na agenda da sala do chefe. A reunião dos agentes já entra na agenda sozinha.</p>
+    <div class="frow"><label>Nova ideia para o quadro</label>
       <div class="inline"><input id="q-txt" placeholder="ex.: testar um canal de vendas novo" maxlength="52">
       <button class="mini" id="q-add">anotar</button></div></div>
     <div class="chiplist" id="q-list">${ideias.map((t, i) =>
