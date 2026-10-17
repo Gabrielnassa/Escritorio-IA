@@ -189,9 +189,10 @@ const FURN = (() => {
       meetSlots.push(s); cadeira(s, 'chairSimple');
     });
 
-  // a porta da sala fica em x 35..36 (world.js): o telão não fica mais no caminho
-  naParede({ t: 'tvWall', x: 37.5, y: 23.15, w: 4.6, d: 0.5, meeting: true });
-  block(37.5, 23.15, 4.6, .75);
+  // a porta da sala fica em x 35..36 (world.js): o telão não fica mais no caminho.
+  // Ele mostra a agenda, a pauta e quem fala (ver TELÃO DA SALA DE REUNIÃO)
+  naParede({ t: 'tvWall', x: 37.4, y: 23.15, w: 4.8, d: 0.5, meeting: true });
+  block(37.4, 23.15, 4.8, .75);
   add({ t: 'plant', x: 33.4, y: 31.2, k: 0 });               block(33.4, 31.2, 1, 1);
 
   /* ---------- CORREDOR / RECEPÇÃO ---------- */
@@ -542,13 +543,13 @@ const FURN = (() => {
     },
 
     tvWall(ctx, o, t) {
+      // o da sala de reunião mostra a reunião de verdade e vai para o
+      // cache em níveis (ver TELÃO DA SALA DE REUNIÃO, mais abaixo)
+      if (o.meeting) { telaoReuniao(ctx, o, t); return; }
       // uma tira (ver naParede): desenha o telão inteiro recortado na faixa
       // vertical dela, com as bordas no pixel inteiro para não sobrar costura
       if (o.fatia) {
-        const m = ctx.getTransform(), snap = v => (Math.round(v * m.a + m.e) - m.e) / m.a;
-        const [a, b] = o.fatia, yc = o.y + .4;
-        const L = a <= o.x + 1e-6 ? -1e5 : snap(S(a, yc).x);
-        const R = b >= o.x + o.w - 1e-6 ? 1e5 : snap(S(b, yc).x);
+        const [L, R] = recorteTira(ctx, o);
         ctx.save();
         ctx.beginPath(); ctx.rect(L, -1e5, R - L, 2e5); ctx.clip();
         DRAW.tvWall(ctx, Object.assign({}, o, { fatia: null }), t);
@@ -557,68 +558,32 @@ const FURN = (() => {
       }
       const { x, y, w } = o;
       const h = 62, z = 46;
-      // pedestal: duas colunas finas até a tela e o rack baixo na frente —
-      // de nogueira ripada no lounge, grafite na sala de reunião
-      ISO.shadow(ctx, x + w / 2, y + .5, w * .4, .22);
-      for (const px of [.7, w - .85]) ISO.box(ctx, x + px, y + .1, .12, .12, z, 0, '#2a2d33');
-      const madeira = !o.meeting;
-      const [cT, cE, cD] = madeira ? ['#5e3a22', '#4f3320', '#3d2616'] : ['#2c2f35', '#1f2126', '#191b1f'];
-      ISO.box(ctx, x + .34, y + .1, w - .68, .5, 2, 0, '#141518', { line: 'rgba(0,0,0,.3)' });
-      ISO.box(ctx, x + .3, y + .05, w - .6, .55, 17, 2, cE, { top: cT, left: cE, right: cD, line: 'rgba(0,0,0,.35)' });
-      faceY(ctx, x + .3, y + .6, w - .6, 19, (c, len) => {
-        const n = 4, pw = len / n;
-        for (let i = 0; i < n; i++) {
-          c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(i * pw, 0, .8, 17);
-          if (madeira) for (let k = 2.5; k < pw - 1; k += 2.6) {
-            c.fillStyle = 'rgba(20,10,4,.3)'; c.fillRect(i * pw + k, 1.5, .6, 14);
-          }
-        }
-        c.fillStyle = madeira ? 'rgba(255,220,180,.07)' : 'rgba(255,255,255,.05)'; c.fillRect(0, 0, len, .8);
-      });
+      corpoTelao(ctx, o, z, true);
       // videogame e a caixinha de som no rack
-      if (madeira) {
-        ISO.box(ctx, x + 1.1, y + .2, .55, .32, 3.2, 19, '#e9eaec', { top: '#f4f5f6', line: 'rgba(0,0,0,.2)' });
-        ISO.box(ctx, x + w - 1.5, y + .22, .3, .26, 6, 19, '#2b2e34', { top: '#3a3e45' });
-      }
+      ISO.box(ctx, x + 1.1, y + .2, .55, .32, 3.2, 19, '#e9eaec', { top: '#f4f5f6', line: 'rgba(0,0,0,.2)' });
+      ISO.box(ctx, x + w - 1.5, y + .22, .3, .26, 6, 19, '#2b2e34', { top: '#3a3e45' });
       ISO.box(ctx, x, y, w, .22, h, z, '#0a0c14');
       faceY(ctx, x + .02, y + .22, w - .04, z + h - 4, (c, len) => {
         c.fillStyle = '#05070f'; c.fillRect(0, 0, len, h - 8);
-        if (o.meeting) {
-          c.textAlign = 'left'; c.textBaseline = 'middle';
-          if (NASSA.pronto(NASSA.logo)) {
-            const im = NASSA.logo, k = 12 / im.naturalHeight;
-            c.drawImage(im, len - 12 - im.naturalWidth * k, 5, im.naturalWidth * k, 12);
-          }
-          c.font = "700 9px 'Barlow Semi Condensed', sans-serif";
-          c.fillStyle = '#00b3ff'; c.fillText('DAILY · SALA DE REUNIÃO', 10, 11);
-          c.font = "600 8px 'Barlow Semi Condensed', sans-serif";
-          c.fillStyle = 'rgba(170,182,210,.8)';
-          c.fillText(new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' }).toUpperCase(), 12, 27);
-          for (let i = 0; i < 3; i++) {
-            c.fillStyle = ISO.rgba('#38bdf8', .18 + .1 * i);
-            c.fillRect(12, 38 + i * 9, (len - 24) * (.35 + .25 * ((Math.sin(t * .6 + i) + 1) / 2)), 4);
-          }
-        } else {
-          // partida no videogame: gramado, linhas e placar
-          const g = c.createLinearGradient(0, 0, 0, h - 8);
-          g.addColorStop(0, '#2f6b33'); g.addColorStop(1, '#245528');
-          c.fillStyle = g; c.fillRect(0, 0, len, h - 8);
-          c.fillStyle = 'rgba(255,255,255,.06)';
-          for (let i = 0; i < 8; i += 2) c.fillRect(i * len / 8, 0, len / 8, h - 8);
-          c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 1;
-          c.strokeRect(6, 6, len - 12, h - 20);
-          c.beginPath(); c.moveTo(len / 2, 6); c.lineTo(len / 2, h - 14); c.stroke();
-          c.beginPath(); c.arc(len / 2, (h - 8) / 2, 8, 0, 7); c.stroke();
-          const bx = len / 2 + Math.sin(t * .7) * len * .3, by = (h - 8) / 2 + Math.sin(t * 1.3) * 10;
-          c.fillStyle = '#fff'; c.beginPath(); c.arc(bx, by, 1.6, 0, 7); c.fill();
-          c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(8, 8, 40, 9);
-          c.fillStyle = '#fff'; c.font = "700 7px 'Barlow Semi Condensed', sans-serif";
-          c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText('NAS 2 x 1 DEV', 11, 12.8);
-        }
+        // partida no videogame: gramado, linhas e placar
+        const g = c.createLinearGradient(0, 0, 0, h - 8);
+        g.addColorStop(0, '#2f6b33'); g.addColorStop(1, '#245528');
+        c.fillStyle = g; c.fillRect(0, 0, len, h - 8);
+        c.fillStyle = 'rgba(255,255,255,.06)';
+        for (let i = 0; i < 8; i += 2) c.fillRect(i * len / 8, 0, len / 8, h - 8);
+        c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 1;
+        c.strokeRect(6, 6, len - 12, h - 20);
+        c.beginPath(); c.moveTo(len / 2, 6); c.lineTo(len / 2, h - 14); c.stroke();
+        c.beginPath(); c.arc(len / 2, (h - 8) / 2, 8, 0, 7); c.stroke();
+        const bx = len / 2 + Math.sin(t * .7) * len * .3, by = (h - 8) / 2 + Math.sin(t * 1.3) * 10;
+        c.fillStyle = '#fff'; c.beginPath(); c.arc(bx, by, 1.6, 0, 7); c.fill();
+        c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(8, 8, 40, 9);
+        c.fillStyle = '#fff'; c.font = "700 7px 'Barlow Semi Condensed', sans-serif";
+        c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText('NAS 2 x 1 DEV', 11, 12.8);
       });
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const gc = S(x + w / 2, y + .3, z + h / 2);
-      ISO.glow(ctx, gc.x, gc.y, 110, o.meeting ? '#38bdf8' : '#cfe0ff', o.meeting ? .18 : .08);
+      ISO.glow(ctx, gc.x, gc.y, 110, '#cfe0ff', .08);
       ctx.restore();
     },
 
@@ -809,6 +774,528 @@ const FURN = (() => {
       emCache(ctx, o, mesaReuniao, { alto: 34, margem: 6 });
     }
   };
+
+  /* ===========================================================
+     TELÃO DE PAREDE — o pedestal, comum ao lounge e à reunião
+     =========================================================== */
+  /** bordas da tira (ver naParede) na tela, no pixel inteiro: [L, R] */
+  function recorteTira(ctx, o) {
+    const m = ctx.getTransform(), snap = v => (Math.round(v * m.a + m.e) - m.e) / m.a;
+    const [a, b] = o.fatia, yc = o.y + .4;
+    return [a <= o.x + 1e-6 ? -1e5 : snap(S(a, yc).x),
+            b >= o.x + o.w - 1e-6 ? 1e5 : snap(S(b, yc).x)];
+  }
+
+  /** duas colunas finas até a base da tela (z) e o rack baixo na frente —
+      de nogueira ripada no lounge, grafite na sala de reunião */
+  function corpoTelao(ctx, o, z, madeira) {
+    const { x, y, w } = o;
+    ISO.shadow(ctx, x + w / 2, y + .5, w * .4, .22);
+    for (const px of [.7, w - .85]) ISO.box(ctx, x + px, y + .1, .12, .12, z, 0, '#2a2d33');
+    const [cT, cE, cD] = madeira ? ['#5e3a22', '#4f3320', '#3d2616'] : ['#2c2f35', '#1f2126', '#191b1f'];
+    ISO.box(ctx, x + .34, y + .1, w - .68, .5, 2, 0, '#141518', { line: 'rgba(0,0,0,.3)' });
+    ISO.box(ctx, x + .3, y + .05, w - .6, .55, 17, 2, cE, { top: cT, left: cE, right: cD, line: 'rgba(0,0,0,.35)' });
+    faceY(ctx, x + .3, y + .6, w - .6, 19, (c, len) => {
+      const n = 4, pw = len / n;
+      for (let i = 0; i < n; i++) {
+        c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(i * pw, 0, .8, 17);
+        if (madeira) for (let k = 2.5; k < pw - 1; k += 2.6) {
+          c.fillStyle = 'rgba(20,10,4,.3)'; c.fillRect(i * pw + k, 1.5, .6, 14);
+        }
+      }
+      c.fillStyle = madeira ? 'rgba(255,220,180,.07)' : 'rgba(255,255,255,.05)'; c.fillRect(0, 0, len, .8);
+    });
+  }
+
+  /* ===========================================================
+     TELÃO DA SALA DE REUNIÃO
+     Mostra a reunião dos agentes (js/reuniao.js), e não um enfeite:
+     · antes: o dia, a hora e quanto falta, a pauta e quem senta à mesa;
+     · durante: quem está falando, a rodada, o tempo corrido e a última fala;
+     · depois: o começo do briefing, por algumas horas.
+     A agenda vem do servidor (/api/reuniao) quando ele responde; senão de
+     ESCRITORIO.reuniao; no GitHub Pages, sem nenhum dos dois, do padrão de
+     data/config.exemplo.json (segunda e sexta, 11:00).
+     É uma superfície grande: corpo e tela vão juntos para o cache em
+     níveis (cada tira copia a sua fatia), e o conteúdo é remontado no
+     máximo duas vezes por segundo — o cache só é repintado quando o texto
+     muda, ou seja, quando o relógio vira o minuto ou a reunião anda. Ao
+     vivo ficam só a luz da tela na sala e o ponto vermelho de "ao vivo".
+     =========================================================== */
+  const TV_Z = 42, TV_H = 66;      // tela de 46 a 104 px: quem senta na frente fica abaixo do conteúdo
+  const DIA_TV  = ['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO'];
+  const DIA_API = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  const PAUTA_PADRAO = 'o que cada agente pode melhorar no próprio sistema esta semana';
+  // na parede a largura sai encolhida pela perspectiva (64 px de face viram
+  // 32 na tela): o texto ganha 30% de volta, e os retratos quase voltam à
+  // proporção real — senão o rosto fica fino
+  const ESTICA = 1.3, ESTICA_RET = 1.6;
+  const FONTE = (peso, px, fam = 'Barlow Semi Condensed') => `${peso} ${px}px '${fam}', sans-serif`;
+  const CIANO = '#00b3ff', CIANO_CLARO = '#38bdf8', TEXTO = '#f2f6ff',
+        TEXTO_2 = '#dfe5ef', APAGADO = 'rgba(170,185,212,.85)', ROTULO = 'rgba(150,166,196,.9)';
+
+  /** dias, hora, duração e pauta: o servidor manda quando responde; senão
+      ESCRITORIO.reuniao; senão o padrão do config.exemplo */
+  function agendaReuniao(est) {
+    const R = (window.ESCRITORIO && ESCRITORIO.reuniao) || {};
+    const ag = {
+      dias: Array.isArray(R.dias) ? R.dias.map(Number) : [1, 5],
+      hora: R.hora != null ? +R.hora : 11, minuto: R.minuto != null ? +R.minuto : 0,
+      dur: +R.duracaoMin || 30, foco: String(R.foco || '').trim() || PAUTA_PADRAO, proxima: null
+    };
+    if (est) {
+      const hm = /^(\d{1,2}):(\d{2})$/.exec(est.hora || '');
+      if (hm) { ag.hora = +hm[1]; ag.minuto = +hm[2]; }
+      if (Array.isArray(est.dias)) ag.dias = est.dias.map(n => DIA_API.indexOf(n)).filter(i => i >= 0);
+      if (est.duracao) ag.dur = +est.duracao;
+      if (est.proxima) ag.proxima = +est.proxima;
+    }
+    return ag;
+  }
+
+  /** próximo horário da agenda (ms); até um minuto depois da hora ainda é "agora" */
+  function proximaReuniao(ag, agora) {
+    if (ag.proxima && ag.proxima > agora - 6e4) return ag.proxima;
+    const d = new Date(agora);
+    for (let i = 0; i < 8; i++) {
+      d.setHours(ag.hora, ag.minuto, 0, 0);
+      if (ag.dias.includes(d.getDay()) && d.getTime() > agora - 6e4) return d.getTime();
+      d.setDate(d.getDate() + 1);
+    }
+    return null;
+  }
+
+  /** "em 2 d 3 h", "em 5 h 20 min", "em 45 min": a precisão cai com a
+      distância, e com ela a frequência com que a tela é repintada */
+  function falta(ms) {
+    const min = Math.ceil(ms / 6e4);
+    if (min <= 0) return 'agora';
+    if (min < 60) return 'em ' + min + ' min';
+    const h = Math.floor(min / 60), m = min % 60;
+    if (h < 24) return 'em ' + h + ' h' + (m ? ' ' + m + ' min' : '');
+    const d = Math.floor(h / 24), hh = h % 24;
+    return 'em ' + d + ' d' + (hh ? ' ' + hh + ' h' : '');
+  }
+
+  /** { dia: 'HOJE' | 'AMANHÃ' | 'SEGUNDA'…, data: '19/10', hora: '11:00' } */
+  function quando(ms, agora) {
+    const d = new Date(ms), h = new Date(agora);
+    const dia0 = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const dd = Math.round((dia0(d) - dia0(h)) / 864e5);
+    const p2 = n => String(n).padStart(2, '0');
+    return { dia: dd === 0 ? 'HOJE' : dd === 1 ? 'AMANHÃ' : dd === -1 ? 'ONTEM' : DIA_TV[d.getDay()],
+             data: p2(d.getDate()) + '/' + p2(d.getMonth() + 1),
+             hora: p2(d.getHours()) + ':' + p2(d.getMinutes()) };
+  }
+
+  /** nomes da reunião casados com o boneco do ROSTER (o rosto vem dele) */
+  function pessoasTV(nomes) {
+    const time = typeof ROSTER !== 'undefined' ? ROSTER.all() : [];
+    return nomes.map(n => {
+      const a = time.find(a => a.name === n);
+      return { nome: n, look: (a && a.look) || null };
+    });
+  }
+
+  /** fora da reunião: os convocados do servidor ou, sem ele, quem tem um
+      sistema conhecido (como o servidor faz) e não foi tirado da mesa */
+  function convocadosTV(est) {
+    if (est && est.convocados && est.convocados.length) return est.convocados.map(p => p.nome);
+    if (typeof ROSTER === 'undefined') return [];
+    const SI = typeof SISTEMAS !== 'undefined' && SISTEMAS.todos().length ? SISTEMAS : null;
+    return ROSTER.all().filter(a => !a.boss && a.sistema && a.reuniao !== false && (!SI || SI.porId(a.sistema)))
+                       .map(a => a.name);
+  }
+
+  /** markdown curto numa linha só: sem negrito, título nem marcador */
+  const corrido = s => String(s || '').replace(/\*\*/g, '').replace(/^#+\s*/gm, '')
+                                      .replace(/^\s*([-*•]|\d+[.)])\s+/gm, '').replace(/\s+/g, ' ').trim();
+
+  /** briefing em linhas [{ titulo, texto }]: "**ONDE ESTAMOS** — …" vira as duas partes */
+  function linhasBriefing(md) {
+    return String(md || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+      const m = /^\*\*([^*]+)\*\*\s*[—–:-]?\s*(.*)$/.exec(l);
+      return m ? { titulo: corrido(m[1]), texto: corrido(m[2]) } : { titulo: '', texto: corrido(l) };
+    }).filter(l => l.titulo || l.texto);
+  }
+
+  /** a última reunião, se acabou há pouco (12 h): o resumo dela fica na tela */
+  function ultimaAta(est, agora) {
+    if (!est) return null;
+    for (const a of [est, est.ataDeHoje]) {
+      if (!a || a.rodando || !a.fim || agora - a.fim > 12 * 36e5) continue;
+      if (a.briefing || (a.falas || []).some(f => f.texto)) return a;
+    }
+    return null;
+  }
+
+  let tvModelo = null, tvModeloEm = -1e9;
+  /** o que a tela mostra agora, com uma chave que só muda quando o que
+      aparece muda; remontado no máximo duas vezes por segundo */
+  function modeloTelao() {
+    const agora = performance.now();
+    if (tvModelo && agora - tvModeloEm < 500) return tvModelo;
+    tvModeloEm = agora;
+    return (tvModelo = montaModeloTelao(Date.now()));
+  }
+  const verTelao = () => modeloTelao().chave;
+
+  function montaModeloTelao(agora) {
+    const est = typeof REUNIAO !== 'undefined' ? REUNIAO.estado : null;
+    const ag = agendaReuniao(est);
+    const prox = proximaReuniao(ag, agora);
+    const m = { modo: 'antes', pauta: ag.foco, prox: prox ? quando(prox, agora) : null,
+                falta: prox ? falta(prox - agora) : '', pessoas: [] };
+    const ata = est && !est.rodando ? ultimaAta(est, agora) : null;
+    if (est && est.rodando) {
+      const parts = est.participantes || [], falas = est.falas || [];
+      const rodada = /2/.test(est.fase || '') ? 2 : 1;
+      // cada um fala na ordem da mesa; quem já tem fala nesta rodada passou a vez
+      const ja = new Set(falas.filter(f => f.rodada === rodada).map(f => f.quem));
+      const vez = est.fase === 'briefing' ? null : parts.find(p => !ja.has(p.nome)) || null;
+      const ult = falas.filter(f => f.texto).slice(-1)[0];
+      Object.assign(m, {
+        modo: 'andamento', briefing: est.fase === 'briefing', rodada,
+        falando: vez ? vez.nome : null, papel: vez ? vez.papel || '' : '',
+        vez: vez ? parts.indexOf(vez) + 1 : parts.length, total: parts.length,
+        min: est.desde ? Math.max(0, Math.floor((agora - est.desde) / 6e4)) : 0,
+        dur: est.ate && est.desde ? Math.max(1, Math.round((est.ate - est.desde) / 6e4)) : ag.dur,
+        ultima: ult ? { quem: ult.quem, texto: corrido(ult.texto) } : null,
+        pessoas: pessoasTV(parts.map(p => p.nome))
+          .map(p => Object.assign(p, { ja: ja.has(p.nome), vez: !!vez && p.nome === vez.nome }))
+      });
+    } else if (ata) {
+      const ini = quando(ata.desde || ata.fim, agora), fim = quando(ata.fim, agora);
+      const linhas = ata.briefing ? linhasBriefing(ata.briefing)
+        : (ata.falas || []).filter(f => f.texto).map(f => ({ titulo: f.quem, texto: corrido(f.texto) }));
+      Object.assign(m, {
+        modo: 'depois', interrompida: ata.fase === 'interrompida', temBriefing: !!ata.briefing,
+        quando: ini.dia + ' · ' + ini.hora + '–' + fim.hora, linhas: linhas.slice(0, 4),
+        nPessoas: (ata.participantes || []).length
+      });
+    } else {
+      m.pessoas = pessoasTV(convocadosTV(est));
+    }
+    // o rosto entra na chave pelos traços (quem troca o visual na ficha repinta)
+    m.chave = fonteCarregada() + '|' + (NASSA.pronto(NASSA.logo) ? 1 : 0) + '|' + JSON.stringify(m, (k, v) =>
+      k === 'look' ? (v ? [v.skin, v.hair, v.style, v.shirt, v.glasses, v.beard, v.cap].join() : 0) : v);
+    return m;
+  }
+
+  /* ---------- tipografia da tela ---------- */
+  /** texto esticado na largura (ver ESTICA); devolve a largura ocupada */
+  function escreve(c, s, u, v, fonte, cor, alinha = 'left', esp = 0) {
+    c.font = fonte; c.fillStyle = cor; c.textBaseline = 'middle'; c.textAlign = alinha;
+    c.letterSpacing = esp + 'px';
+    c.save(); c.translate(u, v); c.scale(ESTICA, 1); c.fillText(s, 0, 0); c.restore();
+    const w = c.measureText(s).width * ESTICA;
+    c.letterSpacing = '0px';
+    return w;
+  }
+  function mede(c, s, fonte, esp = 0) {
+    c.font = fonte; c.letterSpacing = esp + 'px';
+    const w = c.measureText(s).width * ESTICA;
+    c.letterSpacing = '0px';
+    return w;
+  }
+  /** corta com reticências até caber em max (esp: o espaçamento com que vai ser escrito) */
+  function cabe(c, s, fonte, max, esp = 0) {
+    s = String(s || '');
+    if (mede(c, s, fonte, esp) <= max) return s;
+    let t = s;
+    while (t.length > 1 && mede(c, t + '…', fonte, esp) > max) t = t.slice(0, -1);
+    return t.trimEnd() + '…';
+  }
+  /** quebra em até n linhas; a última leva reticências se sobrar texto */
+  function quebra(c, s, fonte, max, n) {
+    const pal = String(s || '').split(/\s+/).filter(Boolean), linhas = [];
+    let l = '';
+    for (let i = 0; i < pal.length; i++) {
+      const t = l ? l + ' ' + pal[i] : pal[i];
+      if (!l || mede(c, t, fonte) <= max) { l = t; continue; }
+      linhas.push(l); l = pal[i];
+      if (linhas.length === n - 1) { l = pal.slice(i).join(' '); break; }
+    }
+    if (l) linhas.push(l);
+    return linhas.slice(0, n).map((x, i, a) => i === a.length - 1 ? cabe(c, x, fonte, max) : x);
+  }
+  const rotulo = (c, s, u, v, cor = ROTULO) => escreve(c, s, u, v, FONTE(700, 5.6), cor, 'left', 1);
+  function filete(c, u0, u1, v) {
+    c.fillStyle = 'rgba(255,255,255,.08)'; c.fillRect(u0, v, u1 - u0, .6);
+  }
+  function fileteV(c, u, v0, v1) {
+    c.fillStyle = 'rgba(255,255,255,.07)'; c.fillRect(u, v0, .9, v1 - v0);
+  }
+  /** etiqueta arredondada (a contagem regressiva) */
+  function pilula(c, s, u, v, fonte, cor, fundo) {
+    const w = mede(c, s, fonte) + 10, h = 9.4;
+    c.save(); c.translate(u, v); c.scale(ESTICA, 1);
+    ISO.rrect(c, 0, -h / 2, w / ESTICA, h, h / 2);
+    c.fillStyle = fundo; c.fill();
+    c.strokeStyle = ISO.rgba(cor, .4); c.lineWidth = .6; c.stroke();
+    c.restore();
+    escreve(c, s, u + 5, v + .3, fonte, cor);
+    return w;
+  }
+
+  /** medalhão com o rosto do boneco (sem boneco: a inicial) */
+  function retrato(c, p, u, v, r, est = {}) {
+    c.save();
+    c.translate(u, v); c.scale(ESTICA_RET, 1);
+    if (est.apagado) c.globalAlpha = .55;
+    c.beginPath(); c.arc(0, 0, r, 0, 7);
+    c.fillStyle = est.vez ? '#123049' : '#172031'; c.fill();
+    if (p.look && typeof AVATAR !== 'undefined') {
+      // do topo do cabelo ao ombro (34 px do boneco) cabem no diâmetro
+      c.save(); c.clip();
+      const k = r * 2 / 34;
+      let look = p.look;
+      if (look.style === 'longo' || look.style === 'chanel') {
+        // de frente, o boneco pinta o cabelo comprido por cima do rosto (o
+        // painel de trás vem depois da cabeça): no retrato ele vai para trás
+        // dela, e por cima fica só a parte de cima do cabelo
+        c.save(); c.translate(1.2 * k, 53 * k); c.scale(k, k);
+        ISO.rrect(c, -13.7, -63, 25, look.style === 'longo' ? 24 : 15, 7);
+        c.fillStyle = ISO.shade(look.hair, -.22); c.fill();
+        c.strokeStyle = 'rgba(6,8,14,.55)'; c.lineWidth = 1.4; c.stroke();
+        c.restore();
+        look = Object.assign({}, look, { style: 'franja' });
+      }
+      AVATAR.draw(c, look, 1.2 * k, 53 * k, 's', { phase: 0, scale: k });
+      c.restore();
+    } else {
+      c.font = FONTE(700, r * 1.1, 'Barlow'); c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = TEXTO_2; c.fillText(String(p.nome || '?').charAt(0).toUpperCase(), 0, .4);
+    }
+    c.beginPath(); c.arc(0, 0, r, 0, 7);
+    c.lineWidth = est.vez ? 1.1 : .55;
+    c.strokeStyle = est.vez ? CIANO : 'rgba(255,255,255,.16)'; c.stroke();
+    if (est.ja) {
+      // já falou nesta rodada: o visto verde no canto
+      const b = r * .74, rb = Math.max(1.8, r * .3);
+      c.globalAlpha = 1;
+      c.beginPath(); c.arc(b, b, rb, 0, 7); c.fillStyle = '#16a36a'; c.fill();
+      c.strokeStyle = '#eafff4'; c.lineWidth = .55; c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(b - rb * .45, b); c.lineTo(b - rb * .1, b + rb * .38); c.lineTo(b + rb * .5, b - rb * .35); c.stroke();
+    }
+    c.restore();
+  }
+
+  /* A tela tem três colunas, e não faixas de ponta a ponta: na parede a
+     linha horizontal desce para a direita junto com o telão, e uma fileira
+     comprida cruzava o texto do lado. Em coluna, cada bloco se lê inteiro.
+     · esquerda: a próxima reunião (ou quem está falando)
+     · meio: a pauta (ou a última fala, ou o briefing)
+     · direita: os rostos de quem senta à mesa                           */
+  function colunas(len, P) {
+    const c3 = len - P - 88;
+    return { c1: P, c2: P + 104, c3, fim1: P + 94, fim2: c3 - 10 };
+  }
+
+  /** os rostos de quem senta à mesa, em grade de até duas linhas */
+  function grade(c, pessoas, u0, u1, v0) {
+    const n = pessoas.length;
+    rotulo(c, 'NA MESA' + (n ? ' · ' + n : ''), u0, v0);
+    if (!n) {
+      escreve(c, 'ninguém convocado', u0, v0 + 10, FONTE(600, 6.4), APAGADO);
+      return;
+    }
+    const porLinha = n <= 4 ? n : Math.ceil(n / 2), passo = Math.min(26, (u1 - u0) / porLinha);
+    // mesa cheia: rosto e letra encolhem um pouco antes de o nome ser cortado
+    const r = Math.min(5.6, passo / (2 * ESTICA_RET) - .3);
+    pessoas.forEach((p, i) => {
+      const lin = Math.floor(i / porLinha), col = i % porLinha;
+      const u = u0 + passo * (col + .5), v = v0 + 11 + lin * 18;
+      retrato(c, p, u, v, r, { vez: p.vez, ja: p.ja, apagado: p.ja && !p.vez });
+      const px = Math.max(4.2, Math.min(5.3, 5.3 * (passo - 2) / mede(c, p.nome, FONTE(600, 5.3))));
+      const fn = FONTE(600, +px.toFixed(2));
+      escreve(c, cabe(c, p.nome, fn, passo - 2), u, v + 9.4, fn, p.vez ? CIANO_CLARO : APAGADO, 'center');
+    });
+  }
+
+  const LOGO_W = 54;              // o logo no canto e uma folga: o título do alto para antes dele
+  function logoTela(c, uDir, v) {
+    if (!NASSA.pronto(NASSA.logo)) return;
+    const im = NASSA.logo, h = 7.2, w = im.naturalWidth * h / im.naturalHeight * ESTICA_RET;
+    c.globalAlpha = .88; c.drawImage(im, uDir - w, v - h / 2, w, h); c.globalAlpha = 1;
+  }
+
+  /** a próxima reunião em bloco: o dia grande, a data, a hora e quanto falta */
+  function blocoProxima(c, m, u, v, max) {
+    if (!m.prox) {
+      escreve(c, 'SEM HORÁRIO', u, v + 1, FONTE(700, 11, 'Barlow'), TEXTO);
+      quebra(c, 'a reunião começa quando você clicar em Reunir agora', FONTE(600, 6.4), max, 3)
+        .forEach((l, i) => escreve(c, l, u, v + 12 + i * 7.6, FONTE(600, 6.4), APAGADO));
+      return;
+    }
+    escreve(c, m.prox.dia, u, v + 1, FONTE(700, 13, 'Barlow'), TEXTO);
+    escreve(c, m.prox.data + '  ·  ' + m.prox.hora, u, v + 13, FONTE(700, 9, 'Barlow'), CIANO);
+    pilula(c, m.falta, u, v + 24, FONTE(700, 6.8), '#bfe9ff', 'rgba(0,179,255,.15)');
+  }
+
+  /** texto corrido numa coluna, em até n linhas */
+  function paragrafo(c, s, u, v, max, n, fonte = FONTE(600, 7.6), cor = TEXTO_2) {
+    quebra(c, s, fonte, max, n).forEach((l, i) => escreve(c, l, u, v + i * 8.4, fonte, cor));
+  }
+
+  function telaAntes(c, len, H, m, P) {
+    const K = colunas(len, P);
+    rotulo(c, 'PRÓXIMA REUNIÃO', P, 7.4, CIANO_CLARO);
+    filete(c, P, len - P, 13.4);
+    blocoProxima(c, m, K.c1, 23, K.fim1 - K.c1);
+    fileteV(c, K.c2 - 7, 18, H - 4);
+    rotulo(c, 'PAUTA', K.c2, 19.5);
+    paragrafo(c, m.pauta, K.c2, 28.4, K.fim2 - K.c2, 4);
+    fileteV(c, K.c3 - 7, 18, H - 4);
+    grade(c, m.pessoas, K.c3, len - P, 19.5);
+  }
+
+  function telaAndamento(c, len, H, m, P) {
+    const K = colunas(len, P);
+    // o ponto "ao vivo" (o brilho dele pulsa fora do cache, ver telaoReuniao)
+    c.fillStyle = '#ff4d5e';
+    c.beginPath(); c.ellipse(P + 2.4 * ESTICA_RET, 7.4, 2.3 * ESTICA_RET, 2.3, 0, 0, 7); c.fill();
+    let u = P + 10;
+    u += escreve(c, 'EM ANDAMENTO', u, 7.4, FONTE(700, 6.6), '#ff8f99', 'left', 1.1) + 7;
+    const fh = FONTE(600, 6.2);
+    escreve(c, cabe(c, (m.briefing ? 'BRIEFING' : 'RODADA ' + m.rodada + ' · ' + m.vez + ' DE ' + m.total) +
+               '  ·  ' + m.min + ' DE ' + m.dur + ' MIN', fh, len - P - LOGO_W - u, .6), u, 7.6, fh, APAGADO, 'left', .6);
+    // o tempo corrido é a barra no lugar do filete
+    c.fillStyle = 'rgba(255,255,255,.08)'; c.fillRect(P, 13, len - 2 * P, 1.2);
+    c.fillStyle = CIANO; c.fillRect(P, 13, (len - 2 * P) * Math.min(1, m.min / m.dur), 1.2);
+
+    const u2 = K.c1 + 28;
+    if (m.falando) {
+      rotulo(c, 'FALANDO AGORA', K.c1, 19.5, CIANO_CLARO);
+      retrato(c, m.pessoas.find(p => p.vez) || { nome: m.falando }, K.c1 + 10.5, 34, 9.4, { vez: true });
+      const fn = FONTE(700, 11.5, 'Barlow');
+      escreve(c, cabe(c, m.falando, fn, K.fim1 - u2), u2, 30.5, fn, TEXTO);
+      paragrafo(c, m.papel, u2, 39.5, K.fim1 - u2, 2, FONTE(600, 6.2), APAGADO);
+    } else {
+      // briefing: o documento sendo escrito no lugar do rosto
+      rotulo(c, 'BRIEFING', K.c1, 19.5, CIANO_CLARO);
+      c.save(); c.translate(K.c1 + 10.5, 34); c.scale(ESTICA_RET, 1);
+      c.fillStyle = '#172031'; c.beginPath(); c.arc(0, 0, 9.4, 0, 7); c.fill();
+      c.strokeStyle = CIANO; c.lineWidth = 1.1; c.stroke();
+      c.fillStyle = TEXTO_2; c.fillRect(-3.6, -4.8, 7.2, 9.6);
+      c.fillStyle = '#5b6b86'; for (let i = 0; i < 4; i++) c.fillRect(-2.4, -3 + i * 2.1, i === 3 ? 3 : 4.8, .7);
+      c.restore();
+      paragrafo(c, 'juntando as falas no plano do dia', u2, 30.5, K.fim1 - u2, 3, FONTE(600, 6.8), TEXTO_2);
+    }
+    fileteV(c, K.c2 - 7, 18, H - 4);
+    if (m.ultima) {
+      // curto de propósito: na parede ele fica na mesma linha do "NA MESA"
+      rotulo(c, cabe(c, m.ultima.quem.toUpperCase() + ' DISSE', FONTE(700, 5.6), K.fim2 - K.c2 - 16, 1), K.c2, 19.5);
+      paragrafo(c, '“' + m.ultima.texto + '”', K.c2, 28.4, K.fim2 - K.c2, 4);
+    } else {
+      rotulo(c, 'PAUTA', K.c2, 19.5);
+      paragrafo(c, m.pauta, K.c2, 28.4, K.fim2 - K.c2, 4);
+    }
+    fileteV(c, K.c3 - 7, 18, H - 4);
+    grade(c, m.pessoas, K.c3, len - P, 19.5);
+  }
+
+  function telaDepois(c, len, H, m, P) {
+    const K = colunas(len, P);
+    const cor = m.interrompida ? '#f2b84b' : '#23e08a';
+    // o visto (ou o traço, se foi interrompida) antes do título
+    c.save(); c.translate(P + 2.4 * ESTICA_RET, 7.4); c.scale(ESTICA_RET, 1);
+    c.fillStyle = ISO.rgba(cor, .18); c.beginPath(); c.arc(0, 0, 3.2, 0, 7); c.fill();
+    c.strokeStyle = cor; c.lineWidth = .8; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath();
+    if (m.interrompida) { c.moveTo(-1.4, 0); c.lineTo(1.4, 0); }
+    else { c.moveTo(-1.5, .1); c.lineTo(-.4, 1.2); c.lineTo(1.6, -1.1); }
+    c.stroke(); c.restore();
+    let u = P + 11;
+    u += escreve(c, m.interrompida ? 'REUNIÃO INTERROMPIDA' : 'REUNIÃO ENCERRADA', u, 7.4, FONTE(700, 6.6), cor, 'left', 1.1) + 7;
+    // quantos sentaram só entra se couber inteiro: cortado no meio não diz nada
+    const fh = FONTE(600, 6.2), cabeAte = len - P - LOGO_W - u;
+    const comMesa = m.quando + (m.nPessoas ? '  ·  ' + m.nPessoas + ' na mesa' : '');
+    escreve(c, mede(c, comMesa, fh, .4) <= cabeAte ? comMesa : cabe(c, m.quando, fh, cabeAte, .4),
+            u, 7.6, fh, APAGADO, 'left', .4);
+    filete(c, P, len - P, 13.4);
+
+    // o resumo ocupa as duas primeiras colunas; a próxima fica na terceira
+    const maxL = K.fim2 - P;
+    rotulo(c, m.temBriefing ? 'BRIEFING DO DIA' : 'O QUE CADA UM TROUXE', P, 19.5, CIANO_CLARO);
+    const ft = FONTE(700, 6.8), fx = FONTE(600, 6.8);
+    m.linhas.forEach((l, i) => {
+      const v = 28.4 + i * 8.2;
+      let w = 0;
+      if (l.titulo) w = escreve(c, cabe(c, l.titulo, ft, maxL * .55), P, v, ft, l.texto ? CIANO_CLARO : TEXTO) + 4;
+      if (l.texto) escreve(c, cabe(c, l.texto, fx, maxL - w), P + w, v, fx, TEXTO_2);
+    });
+    fileteV(c, K.c3 - 7, 18, H - 4);
+    rotulo(c, 'PRÓXIMA', K.c3, 19.5);
+    blocoProxima(c, m, K.c3, 28.5, len - P - K.c3);
+  }
+
+  /** a tela inteira, em px de face (len × H) */
+  function telaReuniao(c, len, H, m) {
+    const g = c.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0c1424'); g.addColorStop(1, '#060a13');
+    c.fillStyle = g; c.fillRect(0, 0, len, H);
+    // reflexo do vidro em diagonal, bem de leve
+    c.fillStyle = 'rgba(255,255,255,.022)';
+    c.beginPath(); c.moveTo(len * .6, 0); c.lineTo(len * .76, 0); c.lineTo(len * .58, H); c.lineTo(len * .42, H); c.fill();
+    const P = 9;
+    logoTela(c, len - P, 7.4);
+    if (m.modo === 'andamento') telaAndamento(c, len, H, m, P);
+    else if (m.modo === 'depois') telaDepois(c, len, H, m, P);
+    else telaAntes(c, len, H, m, P);
+  }
+
+  /** corpo e tela, pintados no cache */
+  function pintaTelaoReuniao(ctx, o) {
+    const { x, y, w } = o;
+    const m = modeloTelao();
+    corpoTelao(ctx, o, TV_Z, false);
+    // barra de videoconferência logo abaixo da tela: câmera no meio e o
+    // LED, verde enquanto a reunião roda
+    ISO.box(ctx, x + w / 2 - .5, y + .1, 1, .14, 4, TV_Z - 6, '#16181d', { top: '#2a2e35', line: 'rgba(0,0,0,.35)' });
+    faceY(ctx, x + w / 2 - .5, y + .24, 1, TV_Z - 2, (c, len) => {
+      c.fillStyle = 'rgba(255,255,255,.06)';
+      for (let u = 4; u < len - 4; u += 2.2) if (Math.abs(u - len / 2) > 6) c.fillRect(u, 1.3, .9, 1.4);
+      c.fillStyle = '#040508'; c.beginPath(); c.ellipse(len / 2, 2, 3.6, 1.6, 0, 0, 7); c.fill();
+      c.fillStyle = 'rgba(120,170,255,.55)'; c.beginPath(); c.ellipse(len / 2 - 1, 1.6, 1, .5, 0, 0, 7); c.fill();
+      c.fillStyle = m.modo === 'andamento' ? '#23e08a' : 'rgba(255,255,255,.18)'; c.fillRect(len - 5, 1.6, 1.4, .9);
+    });
+    ISO.box(ctx, x, y, w, .22, TV_H, TV_Z, '#0a0c14');
+    faceY(ctx, x + .02, y + .22, w - .04, TV_Z + TV_H - 4, (c, len) => telaReuniao(c, len, TV_H - 8, m));
+  }
+
+  /** caixa do cache: do pé do rack ao alto da tela, com a sombra */
+  function caixaTelao(o) {
+    const { x, y, w } = o, mg = 6;
+    return [S(x, y + .62).x - mg, S(x, y).y - TV_Z - TV_H - mg, S(x + w, y).x + mg, S(x + w, y + .62).y + mg];
+  }
+
+  /** uma tira do telão: copia a sua fatia do cache e soma a luz ao vivo */
+  function telaoReuniao(ctx, o, t) {
+    let op = o._tv;
+    if (!op) {
+      const yc = o.y + .4, f = o.fatia || [o.x, o.x + o.w];
+      op = o._tv = {
+        chave: 'telaoReuniao|' + o.x + '|' + o.y, ver: verTelao, caixa: caixaTelao(o),
+        faixa: [f[0] <= o.x + 1e-6 ? -Infinity : S(f[0], yc).x, f[1] >= o.x + o.w - 1e-6 ? Infinity : S(f[1], yc).x]
+      };
+    }
+    emCache(ctx, o, pintaTelaoReuniao, op);
+    // a luz da tela na sala, recortada na tira (senão as cinco somariam) e,
+    // com a reunião rodando, o brilho do ponto vermelho pulsando na primeira
+    const [L, R] = o.fatia ? recorteTira(ctx, o) : [-1e5, 1e5];
+    ctx.save();
+    ctx.beginPath(); ctx.rect(L, -1e5, R - L, 2e5); ctx.clip();
+    ctx.globalCompositeOperation = 'lighter';
+    const gc = S(o.x + o.w / 2, o.y + .3, TV_Z + TV_H / 2);
+    ISO.glow(ctx, gc.x, gc.y, 110, CIANO_CLARO, .14);
+    const xPonto = o.x + .02 + (9 + 2.4 * ESTICA_RET) / ISO.TW;
+    if (modeloTelao().modo === 'andamento' && (!o.fatia || (o.fatia[0] <= xPonto && xPonto < o.fatia[1]))) {
+      faceY(ctx, o.x + .02, o.y + .22, o.w - .04, TV_Z + TV_H - 4, c => {
+        ISO.glow(c, 9 + 2.4 * ESTICA_RET, 7.4, 7, '#ff4d5e', .3 + .35 * (Math.sin(t * 3.2) + 1) / 2);
+      });
+    }
+    ctx.restore();
+  }
 
   /* ===========================================================
      PEÇAS REUTILIZADAS
