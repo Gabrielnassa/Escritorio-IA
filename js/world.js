@@ -869,16 +869,19 @@ const WORLD = (() => {
   }
 
   /* ---- o quadro da BMW, com luminária de quadro em cima ---- */
+  /* tamanho do quadro da BMW na parede (px de parede): ~3/4 da parede, com
+     respiro em volta, em vez de ocupar a altura toda. O clique (pontoNaPlaca)
+     usa a mesma caixa. Formato ≈ o da foto recortada no carro (2,6 : 1).  */
+  const QUADRO_BMW = { w: 190, h: 73, y: 16 };
   function signBmw(c, len, rgbOn) {
-    // formato do quadro ≈ o da foto recortada no carro (2,6 : 1)
-    const h = 96, w = 250, x0 = (len - w) / 2, y0 = 8;
+    const { w, h } = QUADRO_BMW, x0 = (len - w) / 2, y0 = QUADRO_BMW.y;
     // luminária de galeria (latão) e a luz lavando o quadro
     const gl = c.createRadialGradient(len / 2, y0 - 4, 4, len / 2, y0 + 30, w * .6);
     gl.addColorStop(0, 'rgba(255,226,170,.28)'); gl.addColorStop(1, 'rgba(255,226,170,0)');
     c.fillStyle = gl; c.fillRect(0, 0, len, WALL_H);
     BMW.quadro(c, x0, y0, w, h);
     c.fillStyle = '#b39a5c';
-    ISO.rrect(c, len / 2 - 50, y0 - 9, 100, 5, 2.5); c.fill();
+    ISO.rrect(c, len / 2 - 40, y0 - 9, 80, 5, 2.5); c.fill();
     c.fillStyle = '#6e5d33';
     c.fillRect(len / 2 - 2, y0 - 14, 4, 6);
     void rgbOn;
@@ -1173,6 +1176,10 @@ const WORLD = (() => {
       u = (s.y + s.len - y) * ISO.TW;
     }
     const v = WALL_H - z;
+    if (kind === 'bmw') {
+      const q = QUADRO_BMW, x0 = (len - q.w) / 2;
+      return u > x0 - 4 && u < x0 + q.w + 4 && v > q.y - 4 && v < q.y + q.h + 4;
+    }
     return u > 32 && u < len - 32 && v > 2 && v < 106;
   }
 
