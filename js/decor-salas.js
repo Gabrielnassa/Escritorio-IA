@@ -438,12 +438,179 @@
     FURN.orquidea(ctx, x + w - .42, y + .36, Z, 1.05);
   }
 
-  /* ---------- quadro de vidro com o rascunho da arquitetura ----------
+  /* ---------- quadro de vidro com o fluxo da Nassa ----------
      Vidro pintado de branco por trás, em pé sobre dois postes de
-     alumínio. A face escrita olha para +x (para a mesa).               */
+     alumínio. A face escrita olha para +x (para a mesa). Em vez de uma
+     arquitetura genérica, o caminho de um projeto pelos sistemas do time,
+     a pincel: o lead chega pelo site (com o agente de IA atendendo), vira
+     proposta no CRM e projeto no gestor, passa pelo design, pela API e
+     pelo app, pelo QA e sai no deploy. Embaixo de cada sistema, quem
+     cuida dele: o nome vem do ROSTER (renomeou na ficha, muda aqui), e
+     sistema sem ninguém contratado aparece como vaga.
+     São oito caixas em duas linhas que fazem um "S" (a de baixo volta da
+     direita para a esquerda): com o rótulo grande, lê no zoom 1,2; nomes,
+     setas e post-its são o detalhe de quem chega perto.               */
+  const FLUXO = [
+    { id: 'ia',     rot: 'IA',        quem: ['ia'],               lin: 0, col: 0, tracejada: true },
+    { id: 'site',   rot: 'SITE',      quem: ['frontend'],         lin: 0, col: 1 },
+    { id: 'crm',    rot: 'CRM',       quem: ['comercial'],        lin: 0, col: 2 },
+    { id: 'proj',   rot: 'PROJETO',   quem: ['fullstack'],        lin: 0, col: 3 },
+    { id: 'design', rot: 'DESIGN',    quem: ['design'],           lin: 1, col: 3 },
+    { id: 'apiapp', rot: 'API + APP', quem: ['backend', 'mobile'], lin: 1, col: 2 },
+    { id: 'qa',     rot: 'QA',        quem: ['qa'],               lin: 1, col: 1 },
+    { id: 'deploy', rot: 'DEPLOY',    quem: ['devops'],           lin: 1, col: 0 }
+  ];
+  const SETAS = [
+    ['ia', 'site', 'atende', { tracejada: true, cor: 'roxo' }],
+    ['site', 'crm', 'lead'], ['crm', 'proj', 'fechou'], ['proj', 'design', 'escopo'],
+    ['design', 'apiapp', 'telas'], ['apiapp', 'qa', 'build'], ['qa', 'deploy', 'ok!', { cor: 'vermelho' }]
+  ];
+  const MARC = { preto: '#252a33', azul: '#2349c4', vermelho: '#cf3a3a', verde: '#1d9257', roxo: '#6a48d6' };
+  const MARCADOR = "'Caveat', 'Barlow Semi Condensed', sans-serif";
+  const EST_Q = 1.35;          // como no telão: devolve na largura o que a parede encolhe
+
+  /* A letra de pincel é a Caveat, do mesmo Google Fonts da Barlow. Ela só
+     serve a este quadro, então vem daqui e não do index.html; até chegar
+     (ou se não chegar), a Barlow segura, e o quadro repinta uma vez. */
+  let marcador = 0;
+  try {
+    const l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap';
+    const pronto = () => { marcador = 1; };
+    l.onload = () => document.fonts.load("700 12px 'Caveat'").then(pronto, pronto);
+    l.onerror = pronto;
+    document.head.appendChild(l);
+  } catch (e) { marcador = 1; }
+
+  /** quem cuida de cada sistema, pelo ROSTER; muda a versão do cache */
+  let nomesFluxo = null, nomesEm = -1e9;
+  function quemCuida() {
+    const agora = performance.now();
+    if (nomesFluxo && agora - nomesEm < 1500) return nomesFluxo;
+    nomesEm = agora;
+    const time = typeof ROSTER !== 'undefined' ? ROSTER.all() : [];
+    const nome = k => { const a = time.find(a => a.key === k); return a ? a.name : null; };
+    const r = {};
+    for (const b of FLUXO) r[b.id] = b.quem.map(nome).filter(Boolean).join(' · ');
+    r.v = JSON.stringify(r);
+    return (nomesFluxo = r);
+  }
+  const versaoQuadro = () => fonteOk() + marcador * 2 + '|' + quemCuida().v;
+
+  /** traço de pincel: passa pelos pontos com um leve tremor e ponta redonda */
+  function pincel(c, pts, cor, lw, rnd, curva = .6) {
+    c.strokeStyle = cor; c.lineWidth = lw; c.lineCap = 'round'; c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) {
+      const [a, b] = pts[i - 1], [x, y] = pts[i];
+      const dx = x - a, dy = y - b, L = Math.hypot(dx, dy) || 1, k = (rnd() - .5) * curva;
+      c.quadraticCurveTo((a + x) / 2 - dy / L * k, (b + y) / 2 + dx / L * k, x, y);
+    }
+    c.stroke();
+  }
+
+  /** caixa a pincel: quatro lados meio tortos, e o fim passa um pouco do começo */
+  function caixaPincel(c, u, v, w, h, cor, rnd, tracejada) {
+    const j = () => (rnd() - .5) * .9;
+    const p = [[u + j(), v + j()], [u + w + j(), v + j()], [u + w + j(), v + h + j()], [u + j(), v + h + j()]];
+    if (tracejada) c.setLineDash([2.2, 1.6]);
+    pincel(c, [...p, [p[0][0] + 2.2, p[0][1] - .3]], cor, .8, rnd, .8);
+    c.setLineDash([]);
+  }
+
+  /** escrita esticada na largura, um tiquinho torta */
+  function escrita(c, s, u, v, px, cor, alinha = 'center', rot = 0, peso = 700) {
+    c.save(); c.translate(u, v); c.rotate(rot); c.scale(EST_Q, 1);
+    c.font = `${peso} ${px}px ${MARCADOR}`; c.fillStyle = cor;
+    c.textAlign = alinha; c.textBaseline = 'middle'; c.fillText(s, 0, 0);
+    c.restore();
+  }
+  /** tamanho que faz o texto caber na largura (a Caveat é mais estreita que a Barlow) */
+  function cabeQ(c, s, px, max, peso = 700) {
+    c.font = `${peso} ${px}px ${MARCADOR}`;
+    const w = c.measureText(s).width * EST_Q;
+    return w > max ? px * max / w : px;
+  }
+
+  /** seta a pincel de a para b, com duas farpas na ponta e o rótulo em cima */
+  function setaPincel(c, a, b, rot, op, rnd) {
+    const cor = MARC[op.cor || 'azul'];
+    if (op.tracejada) c.setLineDash([2, 1.6]);
+    pincel(c, [a, b], cor, .75, rnd, 1.2);
+    c.setLineDash([]);
+    const an = Math.atan2(b[1] - a[1], b[0] - a[0]), f = 2.8;
+    pincel(c, [[b[0] - Math.cos(an - .5) * f, b[1] - Math.sin(an - .5) * f], b,
+               [b[0] - Math.cos(an + .5) * f, b[1] - Math.sin(an + .5) * f]], cor, .75, rnd, .2);
+    if (rot) {
+      // na horizontal o rótulo vai em cima da seta; na vertical, à esquerda dela
+      const vert = Math.abs(b[0] - a[0]) < 1;
+      escrita(c, rot, (a[0] + b[0]) / 2 - (vert ? 2.6 : 0), (a[1] + b[1]) / 2 - (vert ? 0 : 3.4),
+              cabeQ(c, rot, 5.4, vert ? 24 : Math.abs(b[0] - a[0]) + 4, 600), cor, vert ? 'right' : 'center', (rnd() - .5) * .08, 600);
+    }
+  }
+
+  /** post-it colado meio torto, com duas linhas a caneta */
+  function postit(c, u, v, cor, linhas, rot) {
+    c.save(); c.translate(u, v); c.rotate(rot);
+    const w = 30, h = 16;
+    c.fillStyle = 'rgba(0,0,0,.09)'; c.fillRect(.7, .9, w, h);
+    c.fillStyle = cor; c.fillRect(0, 0, w, h);
+    c.fillStyle = 'rgba(0,0,0,.06)'; c.fillRect(0, 0, w, 2.2);          // a faixa de cola
+    linhas.forEach((l, i) => {
+      c.save(); c.translate(w / 2, 6 + i * 5.6); c.scale(EST_Q * .82, 1);
+      c.font = `700 ${cabeQ(c, l, 5.4, (w - 3) / .82)}px ${MARCADOR}`;
+      c.fillStyle = '#2b2f38'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(l, 0, 0);
+      c.restore();
+    });
+    c.restore();
+  }
+
+  function fluxoNoQuadro(c, len, H) {
+    const rnd = sorteio(42), nomes = quemCuida();
+    // título com o sublinhado de pincel
+    escrita(c, 'DO LEAD AO DEPLOY', 8, 9.5, 8.6, MARC.azul, 'left', -.012);
+    pincel(c, [[8, 15], [44, 14.6], [79, 15.3]], ISO.rgba(MARC.azul, .8), .7, rnd, 1);
+    // post-its no canto de cima, longe das caixas
+    postit(c, len - 72, 2.5, '#f6dc79', ['lead novo:', 'resposta em 1 h'], -.05);
+    postit(c, len - 37, 3.6, '#a8dcf0', ['deploy só', 'com QA ok'], .06);
+
+    // grade: quatro colunas, duas linhas
+    const u0 = 7, BW = 35, BH = 17, gap = (len - 2 * u0 - 4 * BW) / 3;
+    const caixaDe = b => ({ u: u0 + b.col * (BW + gap), v: b.lin ? 51 : 24 });
+    const pos = {};
+    for (const b of FLUXO) pos[b.id] = caixaDe(b);
+    for (const b of FLUXO) {
+      const { u, v } = pos[b.id], cor = b.tracejada ? MARC.roxo : MARC.preto;
+      caixaPincel(c, u, v, BW, BH, cor, rnd, b.tracejada);
+      escrita(c, b.rot, u + BW / 2, v + 6.6, cabeQ(c, b.rot, 8.4, BW - 7), cor, 'center', (rnd() - .5) * .05);
+      const n = nomes[b.id];
+      escrita(c, n || 'vaga aberta', u + BW / 2, v + 13, cabeQ(c, n || 'vaga aberta', 5.6, BW - 6, 600),
+              n ? MARC.azul : MARC.vermelho, 'center', 0, 600);
+    }
+    // no ar: o visto verde no canto do deploy
+    const d = pos.deploy;
+    pincel(c, [[d.u + BW - 6, d.v + 1.2], [d.u + BW - 3.6, d.v + 3.6], [d.u + BW + 1.5, d.v - 3.5]], MARC.verde, 1.1, rnd, .3);
+
+    // setas: na mesma linha, de borda a borda; entre linhas, descendo
+    for (const [de, para, rot, op = {}] of SETAS) {
+      const A = pos[de], B = pos[para];
+      let a, b;
+      if (A.v === B.v) {
+        const dir = B.u > A.u ? 1 : -1, vm = A.v + BH / 2 + (rnd() - .5) * .8;
+        a = [dir > 0 ? A.u + BW + 1.2 : A.u - 1.2, vm];
+        b = [dir > 0 ? B.u - 1.4 : B.u + BW + 1.4, vm + (rnd() - .5) * .8];
+      } else {
+        const um = A.u + BW / 2;
+        a = [um, A.v + BH + 1.2]; b = [um + .4, B.v - 1.4];
+      }
+      setaPincel(c, a, b, rot, op, rnd);
+    }
+  }
+
   function quadroVidro(ctx, o) {
     const { x, y, w, d } = o;
-    const z0 = 24, z1 = 90;
+    const z0 = 22, z1 = 96;
     const ALU = ['#c3c9d1', '#a5acb5', '#8d949d'];
     ISO.shadow(ctx, x + w / 2, y + d / 2, .9, .14);
     const pes = [y + .28, y + d - .28];
@@ -455,45 +622,19 @@
     faceX(ctx, x + .06, y, d, z1, (c, len) => {
       const H = z1 - z0;
       c.fillStyle = '#f4f6f5'; c.fillRect(1, 1, len - 2, H - 2);
-      c.fillStyle = 'rgba(150,180,210,.12)';
-      c.beginPath(); c.moveTo(len * .58, 1); c.lineTo(len * .7, 1); c.lineTo(len * .48, H - 1); c.lineTo(len * .36, H - 1); c.fill();
-      c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillStyle = '#2f5bff'; c.font = "700 6px 'Barlow Semi Condensed', sans-serif";
-      c.textAlign = 'left'; c.fillText('ARQUITETURA · V2', 7, 8);
-      c.strokeStyle = 'rgba(47,91,255,.7)'; c.lineWidth = .5;
-      c.beginPath(); c.moveTo(7, 11.6); c.lineTo(60, 11.6); c.stroke();
-      const caixas = [['APP', 10, 20], ['API', 56, 20], ['FILA', 102, 20], ['AGENTES', 102, 44], ['DB', 56, 44]];
-      c.textAlign = 'center';
-      c.font = "700 4.6px 'Barlow Semi Condensed', sans-serif";
-      for (const [nome, bx, by] of caixas) {
-        c.strokeStyle = '#2b2f36'; c.lineWidth = .8; c.strokeRect(bx, by, 34, 12);
-        c.fillStyle = '#2b2f36'; c.fillText(nome, bx + 17, by + 6.4);
-      }
-      const seta = (ax, ay, bx, by, cor) => {
-        c.strokeStyle = cor; c.fillStyle = cor; c.lineWidth = .8;
-        c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
-        const an = Math.atan2(by - ay, bx - ax);
-        c.beginPath(); c.moveTo(bx, by);
-        c.lineTo(bx - Math.cos(an - .45) * 3, by - Math.sin(an - .45) * 3);
-        c.lineTo(bx - Math.cos(an + .45) * 3, by - Math.sin(an + .45) * 3); c.fill();
-      };
-      seta(44, 26, 55, 26, '#2f5bff'); seta(90, 26, 101, 26, '#2f5bff');
-      seta(119, 32, 119, 43, '#2f5bff'); seta(101, 50, 91, 50, '#2f5bff'); seta(73, 32, 73, 43, '#2f5bff');
-      // o gargalo marcado em vermelho
-      c.strokeStyle = '#d64545'; c.lineWidth = .8;
-      c.beginPath(); c.ellipse(119, 26, 22, 9, 0, 0, 7); c.stroke();
-      c.fillStyle = '#d64545'; c.font = "700 5px 'Barlow Semi Condensed', sans-serif"; c.fillText('!', 143, 19);
-      // post-its no canto
-      [['#f3d97a', 12, 42], ['#9fd9ee', 24, 45], ['#f4b3c0', 15, 52]].forEach(([cor, nx, ny]) => {
-        c.fillStyle = 'rgba(0,0,0,.08)'; c.fillRect(nx + .5, ny + .6, 10, 9);
-        c.fillStyle = cor; c.fillRect(nx, ny, 10, 9);
-        c.fillStyle = 'rgba(40,40,50,.45)'; c.fillRect(nx + 1.5, ny + 2.5, 6.5, .5); c.fillRect(nx + 1.5, ny + 4.5, 5, .5);
-      });
+      // marca de apagador de reuniões passadas e o reflexo do vidro
+      c.fillStyle = 'rgba(120,130,150,.05)';
+      c.beginPath(); c.ellipse(len * .3, H * .78, 26, 6, -.08, 0, 7); c.fill();
+      c.fillStyle = 'rgba(150,180,210,.11)';
+      c.beginPath(); c.moveTo(len * .6, 1); c.lineTo(len * .7, 1); c.lineTo(len * .5, H - 1); c.lineTo(len * .4, H - 1); c.fill();
+      fluxoNoQuadro(c, len, H);
     });
-    // calha das canetas
+    // calha das canetas: azul, vermelha, verde e o apagador
     caixa(ctx, x + .06, y + .3, .08, d - .6, 1.4, z0 + 1, ...ALU);
-    ISO.cyl(ctx, x + .1, y + 1.0, .025, 1.2, z0 + 2.4, '#2f5bff');
-    ISO.cyl(ctx, x + .1, y + 1.12, .025, 1.2, z0 + 2.4, '#d64545');
+    ISO.cyl(ctx, x + .1, y + 1.0, .025, 1.2, z0 + 2.4, MARC.azul);
+    ISO.cyl(ctx, x + .1, y + 1.12, .025, 1.2, z0 + 2.4, MARC.vermelho);
+    ISO.cyl(ctx, x + .1, y + 1.24, .025, 1.2, z0 + 2.4, MARC.verde);
+    caixa(ctx, x + .07, y + 1.9, .07, .34, 2.4, z0 + 2.4, '#2b2e34', '#3a3e45', '#1e2025');
   }
 
   /* ===========================================================
@@ -591,7 +732,7 @@
     quadroKanban(ctx, o) { emCache(ctx, o, quadroKanban, 96, 8, fonteOk); },
     plantaAlta(ctx, o)   { emCache(ctx, o, plantaAlta, o.k === 1 ? 112 : 96, 34); },
     aparadorReuniao(ctx, o) { emCache(ctx, o, aparadorReuniao, 56, 6); },
-    quadroVidro(ctx, o)  { emCache(ctx, o, quadroVidro, 96, 8, fonteOk); },
+    quadroVidro(ctx, o)  { emCache(ctx, o, quadroVidro, 100, 8, versaoQuadro); },
     marcaVidro(ctx, o)   { emCache(ctx, o, marcaVidro, WORLD.WALL_H, 4, () => NASSA.pronto(NASSA.logo) ? 1 : 0); },
     sofaEspera(ctx, o)   { emCache(ctx, o, sofaEspera, 54, 6); },
     mesaLateral(ctx, o)  { emCache(ctx, o, mesaLateral, 40, 6); },
@@ -630,9 +771,11 @@
   // oeste: no canto leste, colada no vidro, a régua de LED do alto da
   // parede passava na frente das folhas e ela parecia presa numa caixa
   encostar({ t: 'aparadorReuniao', x: 42.45, y: 23.14, w: 3.3, d: .7, eixo: 'x' });
-  add({ t: 'plantaAlta', x: 33.1, y: 26.75, w: .9, d: .9, k: 2 });  block(33.1, 26.75, .9, .9);
-  // quadro de vidro no lado oeste, de frente para a mesa
-  encostar({ t: 'quadroVidro', x: 33.1, y: 23.7, w: .1, d: 2.7, eixo: 'y' });
+  // um pouco ao sul do quadro, para as folhas não taparem o começo do fluxo
+  add({ t: 'plantaAlta', x: 33.1, y: 27.5, w: .9, d: .9, k: 2 });  block(33.1, 27.5, .9, .9);
+  // quadro de vidro no lado oeste, de frente para a mesa: mais largo e
+  // mais alto que antes, para o fluxo dos sistemas caber com letra grande
+  encostar({ t: 'quadroVidro', x: 33.1, y: 23.35, w: .1, d: 3.1, eixo: 'y' });
 
   /* ---------- hall entre a sala do chefe e a dos devs ---------- */
   add({ t: 'plantaAlta', x: 15.55, y: 1.2, w: .9, d: .9, k: 1 });  block(15.55, 1.2, .9, .9);

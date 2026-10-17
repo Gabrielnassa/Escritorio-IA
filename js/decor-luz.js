@@ -805,7 +805,7 @@ const LUZ = (() => {
      objeto (as coordenadas são fixas no mundo); brilhos são sprites.
      =========================================================== */
   /** cabo de aço que sobe acima do pé-direito e some no escuro do forro */
-  function cabo(ctx, o, i, x, y, z0, z1) {
+  function cabo(ctx, o, i, x, y, z0, z1, lw = .8) {
     const a = P(x, y, z0), b = P(x, y, z1);
     o.cabos = o.cabos || [];
     let g = o.cabos[i];
@@ -817,7 +817,7 @@ const LUZ = (() => {
       o.cabos[i] = g;
     }
     ctx.strokeStyle = g;
-    ctx.lineWidth = .8;
+    ctx.lineWidth = lw;
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
   }
 
@@ -879,28 +879,43 @@ const LUZ = (() => {
   }
 
   FURN.registrar({
-    /* pendente linear de LED sobre a mesa de reunião: perfil preto fino,
-       difusor embaixo, dois cabos de aço. o.mesa = o tampo */
+    /* pendente linear de LED sobre a mesa de reunião. Era uma caixa de
+       5 px com o difusor somado em branco quase puro: de longe, um risco
+       duro cortando a sala. Agora é um perfil grafite fino, e a luz é um
+       brilho difuso logo abaixo dele — o difusor fica num filete morno,
+       nunca branco estourado. Os cabos são fios.
+       o.mesa = o tampo */
     pendenteLinear(ctx, o) {
       const { x, y, w, d, z } = o;
       const n = estado.noite;
       const m = o.mesa;
-      // a luz no tampo vem antes da peça: a barra fica por cima do brilho
+      // a luz no tampo vem antes da peça: o perfil fica por cima do brilho
       luzNoPlano(ctx, m.x + m.w / 2, m.y + m.d / 2, FURN.TOP + .4, w / 2 + .7, m.d / 2 - .2,
-                 '#ffe9cc', lerp(.12, .24, n));
-      o.cabosX.forEach((cx, i) => cabo(ctx, o, i, cx, y + d / 2, z + 5, z + 92));
-      // perfil: corpo preto fosco, tampa grafite e ponteiras de alumínio
-      ISO.box(ctx, x, y, w, d, 5, z, '#16181d', { top: '#2c2f36', left: '#1b1d22', right: '#101114' });
-      ISO.box(ctx, x - .05, y - .01, .06, d + .02, 5, z, '#8d95a3', { top: '#b9c0cc' });
-      ISO.box(ctx, x + w - .01, y - .01, .06, d + .02, 5, z, '#8d95a3', { top: '#b9c0cc' });
-      // difusor aceso na aresta de baixo e o halo no ar logo abaixo dele
+                 '#ffe9cc', lerp(.13, .26, n));
+      o.cabosX.forEach((cx, i) => cabo(ctx, o, i, cx, y + d / 2, z + 3, z + 92, .5));
+      // o brilho difuso embaixo do perfil, no plano do ar, alongado como ele
+      const c = P(x + w / 2, y + d / 2, z - .6);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ISO.quad(ctx, [P(x + .04, y + d, z + 1.3), P(x + w - .04, y + d, z + 1.3), P(x + w - .04, y + d, z), P(x + .04, y + d, z)],
-               ISO.rgba('#fff3e0', lerp(.6, .95, n)));
+      ctx.globalAlpha = lerp(.24, .4, n);
+      ctx.transform(ISO.HW, ISO.HH, -ISO.HW, ISO.HH, c.x, c.y);
+      ctx.drawImage(sprite('ret', '#ffe2bd'), -(w / 2 + .35), -.42, w + .7, .84);
+      ctx.restore();
+      // perfil grafite fosco com as ponteiras no mesmo tom: só a tampa pega luz
+      ISO.box(ctx, x, y, w, d, 3.4, z, '#16181c',
+              { top: '#383c44', left: '#1d1f24', right: '#111216', line: 'rgba(0,0,0,.3)' });
+      ISO.box(ctx, x - .03, y - .005, .04, d + .01, 3.4, z, '#3a3e46', { top: '#555a64', line: 'rgba(0,0,0,.3)' });
+      ISO.box(ctx, x + w - .01, y - .005, .04, d + .01, 3.4, z, '#3a3e46', { top: '#555a64', line: 'rgba(0,0,0,.3)' });
+      // o difusor: um filete morno na aresta de baixo, e o ar aceso logo abaixo
+      const a = P(x + .06, y + d, z + .2), b = P(x + w - .06, y + d, z + .2);
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = ISO.rgba('#ffe7c6', lerp(.55, .75, n));
+      ctx.lineWidth = .8;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       ctx.restore();
       for (let i = 0; i < 3; i++)
-        halo(ctx, x + w * (i + .5) / 3, y + d / 2, z - 4, 36, '#ffe6c2', lerp(.06, .15, n));
+        halo(ctx, x + w * (i + .5) / 3, y + d / 2, z - 6, 30, '#ffe6c2', lerp(.035, .1, n));
     },
 
     /* luminária de sinuca: três cúpulas pretas com friso de latão numa
@@ -945,7 +960,7 @@ const LUZ = (() => {
      Os cabos caem entre os rostos de quem senta do outro lado da mesa. */
   for (const m of FURN.items.filter(o => o.t === 'meetTable')) {
     const cx = m.x + m.w / 2, cy = m.y + m.d / 2;
-    const w = Math.min(4, m.w - 2.4), d = .16;
+    const w = Math.min(4, m.w - 2.4), d = .12;
     FURN.add({ t: 'pendenteLinear', x: cx - w / 2, y: cy - d / 2, w, d, z: 80, mesa: m,
                cabosX: [cx - 1, cx + 1], dk: FURN.depth(m) + .01 });
   }
