@@ -6,3 +6,4 @@ data/*.json
 !data/config.exemplo.json
 data/logs/
 data/reunioes/
+data/pedidos/

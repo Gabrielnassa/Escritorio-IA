@@ -10,6 +10,12 @@
   "endereco": "Av. Brigadeiro Faria Lima · Itaim Bibi · São Paulo",
   "andar": 18,
   "porta": 4321,
+  "pedidos": {
+    "_leia": "Pedidos de clientes (botão 📥 Pedido). pasta: onde cada projeto é criado (padrão ~/NassaTech/clientes). limiteUSD: gasto de IA por pedido antes de pausar e te perguntar. modelo: null = o padrão do seu Claude Code.",
+    "limiteUSD": 5,
+    "modelo": null,
+    "minutosPorTarefa": 20
+  },
   "reuniao": {
     "_leia": "automatica: false = só quando você clica em Reunir agora. Cada fala é uma chamada ao Claude e consome a cota do seu plano. dias: 0 = domingo ... 6 = sábado.",
     "automatica": false,

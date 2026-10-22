@@ -139,6 +139,37 @@ dentro da pasta do sistema:
 
 Precisa do Claude Code instalado e logado nesta máquina.
 
+## Pedido de cliente (📥 Pedido)
+
+Você sobe o que o cliente pediu e a equipe faz o projeto, com você aprovando
+as duas pontas. Precisa do escritório rodando na sua máquina (`npm start`) e do
+Claude Code instalado e logado; no GitHub Pages o botão só explica isso.
+
+1. **📥 Pedido → ＋ Novo pedido:** nome do cliente e o pedido (cole a mensagem
+   ou anexe .txt/.md). O escritório cria `~/NassaTech/clientes/<cliente>`, com
+   git e um `PEDIDO.md`.
+2. **Planejamento:** Duda e Rafa leem o pedido (sem mexer em nada) e devolvem
+   o plano: tarefas por agente, prazo, orçamento sugerido e dúvidas para
+   confirmar com o cliente.
+3. **Você aprova o plano**, ou pede ajuste em texto livre.
+4. **Produção:** cada agente faz a sua tarefa na pasta do projeto, um depois do
+   outro, e registra o que fez no `ENTREGA.md`. O balão dele no andar mostra a
+   tarefa. O Theo testa no fim.
+5. **Você revisa** (👁 Ver o resultado abre o `index.html` do projeto) e aprova a
+   entrega ou pede ajuste. Aprovada, ela vira um commit no git do projeto.
+
+O celular recebe um aviso quando o plano fica pronto, quando a entrega fica
+pronta e se algo parar (veja *Avisos no celular*). Cada pedido tem um limite de
+gasto de IA (US$ 5 por padrão): ao chegar nele, o trabalho pausa e espera você
+mandar continuar. Publicar para o cliente, cobrar e mandar mensagem continuam
+com você.
+
+No `data/config.json`, opcional:
+
+```json
+"pedidos": { "pasta": "/Users/voce/NassaTech/clientes", "limiteUSD": 5, "modelo": null, "minutosPorTarefa": 20 }
+```
+
 ## Reunião dos agentes
 
 Na sala de reunião, **▶ Reunir agora** junta os agentes que têm sistema local.
@@ -203,6 +234,7 @@ versionados.
 ```
 server.js          servidor: arquivos da tela, API, sobe/vigia sistemas, espelho
 reuniao.js         reunião dos agentes (Claude Code em cada pasta)
+pedidos.js         pedido do cliente: plano, aprovação, produção e entrega
 avisos.js          ntfy e CallMeBot
 index.html         a tela
 js/nassa.js        cores da marca, vista da cidade pelas janelas e o céu

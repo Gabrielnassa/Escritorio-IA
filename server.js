@@ -58,7 +58,12 @@ const TYPES = {
   '.png':  'image/png',
   '.jpg':  'image/jpeg',
   '.ico':  'image/x-icon',
-  '.webp': 'image/webp'
+  '.webp': 'image/webp',
+  '.jpeg': 'image/jpeg',
+  '.gif':  'image/gif',
+  '.woff2':'font/woff2',
+  '.txt':  'text/plain; charset=utf-8',
+  '.md':   'text/plain; charset=utf-8'
 };
 
 /* ---------------- registro ----------------
@@ -558,6 +563,9 @@ const AVISOS = require('./avisos').init(ROOT, {
 const REUNIAO = require('./reuniao').init({ ROOT, lerRegistro, CLAUDE_BIN, config: lerConfig,
   avisar: (t, x, p) => AVISOS.avisar(t, x, p).catch(() => {}) });
 REUNIAO.agendar(equipeDoDisco);
+/* o pedido do cliente: do briefing à entrega, com o CEO aprovando — ver pedidos.js */
+const PEDIDOS = require('./pedidos').init({ ROOT, CLAUDE_BIN, config: lerConfig, equipe: equipeDoDisco,
+  avisar: (t, x, p) => AVISOS.avisar(t, x, p).catch(() => {}) });
 
 const PAPEL =
   'Você é o agente responsável por este sistema dentro do escritório de agentes, ' +
@@ -853,7 +861,44 @@ const servidor = http.createServer(async (req, res) => {
     });
     return;
   }
+  /* ---- pedidos de cliente ---- */
+  if (rota === '/api/pedidos' && req.method === 'GET')
+    return json(res, 200, { pedidos: PEDIDOS.lista(), pasta: PEDIDOS.pasta() });
+  const mp = rota.match(/^\/api\/pedidos(?:\/([a-z0-9-]+))?(?:\/([a-z-]+))?$/);
+  if (mp && req.method === 'GET' && mp[1] && !mp[2]) {
+    const d = PEDIDOS.detalhe(mp[1]);
+    return d ? json(res, 200, d) : json(res, 404, { ok: false, motivo: 'pedido não encontrado' });
+  }
+  if (mp && req.method === 'POST') {
+    let bruto = '';
+    req.on('data', c => { bruto += c; if (bruto.length > 3e5) req.destroy(); });
+    req.on('end', () => {
+      let b = {};
+      try { b = JSON.parse(bruto || '{}'); } catch (e) { return json(res, 400, { ok: false, motivo: 'json inválido' }); }
+      if (!mp[1]) return json(res, 200, PEDIDOS.criar(b));
+      json(res, 200, PEDIDOS.acao(mp[1], mp[2], b.texto));
+    });
+    return;
+  }
   if (rota.startsWith('/api/')) return json(res, 404, { ok: false, motivo: 'rota não existe' });
+
+  /* ---- a entrega de um pedido, para o CEO revisar ----
+     Em sandbox: a página que os agentes fizeram roda com origem opaca, então
+     não consegue chamar a API do escritório (o Origin dela é "null"). */
+  const me = rota.match(/^\/pedidos\/([a-z0-9-]+)(\/.*)?$/);
+  if (me && req.method === 'GET') {
+    if (!me[2]) { res.writeHead(301, { Location: rota + '/' }).end(); return; }
+    let rel = me[2].slice(1); if (!rel || rel.endsWith('/')) rel += 'index.html';
+    const alvo = PEDIDOS.arquivoDaEntrega(me[1], rel);
+    if (!alvo) { res.writeHead(404, { 'Content-Type': 'text/plain' }).end('404'); return; }
+    fs.readFile(alvo, (err, buf) => {
+      if (err) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('não encontrado: ' + rel); return; }
+      res.writeHead(200, { 'Content-Type': TYPES[path.extname(alvo).toLowerCase()] || 'application/octet-stream',
+        'Cache-Control': 'no-store', 'Content-Security-Policy': 'sandbox allow-scripts allow-forms allow-popups allow-modals' });
+      res.end(buf);
+    });
+    return;
+  }
 
   /* ---- estáticos ---- */
   let rel = rota === '/' ? '/index.html' : rota;

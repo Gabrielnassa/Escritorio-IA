@@ -408,6 +408,9 @@ class Actor {
     if (st === 'offline')      { this.act = 'fora do expediente'; return; }
     if (this.microBreak > 0)   { this.act = 'pegando um café'; return; }
     if (this.moving)           { this.act = 'indo para ' + (this.slot ? (this.slot.label || 'a estação') : 'algum lugar'); return; }
+    // trabalhando num pedido de cliente: o balão diz qual (pedidos-ui.js)
+    const pedido = (typeof PEDIDOS_UI !== 'undefined') && PEDIDOS_UI.tarefaDe(this.a.key || this.a.id);
+    if (pedido && st === 'trabalhando') { this.act = pedido; return; }
     if (st === 'trabalhando')  { this.act = this.slot ? ('produzindo na ' + this.slot.label) : 'procurando mesa livre'; return; }
     if (st === 'reuniao')      { this.act = 'em reunião'; return; }
     if (st === 'descanso')     { this.act = this.slot ? this.slot.act : 'circulando na sala de jogos'; return; }
@@ -1849,6 +1852,7 @@ $('#btn-allrest').addEventListener('click', () => { setAll('descanso'); toast('E
 $('#btn-report').addEventListener('click', openReport);
 $('#btn-avisos').addEventListener('click', () => AVISOS_UI.abrir());
 $('#btn-quadro').addEventListener('click', openQuadro);
+$('#btn-pedido').addEventListener('click', () => PEDIDOS_UI.abrir());
 $('#btn-voice').addEventListener('click', toggleVoice);
 $('#btn-speak').addEventListener('click', () => speak(buildReport().fala));
 $('#btn-panel').addEventListener('click', () => $('#panel').classList.toggle('open'));
