@@ -48,6 +48,30 @@ Para trocar a foto, substitua `assets/bmw-e90-335i.webp` por outra imagem com
 o carro de lado. O recorte do quadro (`CARRO` em `js/bmw.js`) mantém o carro
 inteiro.
 
+### A casa do Gabriel
+
+Na ficha do Gabriel (o CEO) tem **🏠 Ir para casa**: ele desce pelo elevador da
+torre e a tela muda para a casa dele, no mesmo estilo isométrico. Ele chega pela
+garagem e anda sozinho pelos cantos (a BMW, a bancada, a TV com o jogo do
+Palmeiras, o café, a piscina). Com ele em casa, a ficha mostra **🏠 Ver a casa**
+e **🏢 Voltar ao escritório**.
+
+- **Garagem:** a BMW 335i E90 LCI M Sport num elevador tesoura (o botão
+  **⬆ Subir a BMW** sobe e desce o carro), bancada com morsa, painel de
+  ferramentas, carrinho de ferramentas, compressor, estante, rack com as rodas,
+  macaco, central hidráulica, frigobar e as faixas da M na parede. Tocar no
+  carro abre o quadro da BMW.
+- **Sala integrada:** vidro entre a garagem e a sala, com as poltronas viradas
+  para o carro, sofá, TV no painel ripado, cozinha com ilha, mesa de jantar e
+  deck com piscina.
+
+A BMW (`js/e90.js`) é um modelo 3D com o perfil medido na foto do quadro
+(entre-eixos de 2,760 m e as rodas 359M de 19" como régua). A lateral usa a
+própria foto, recortada em `assets/bmw-e90-lado.png`. Capô, teto e vidros são
+pintados pelo reflexo das luzes da garagem. A frente é desenhada por cima:
+faróis com os dois anéis e a sobrancelha de LED da LCI, rins cromados,
+para-choque M com colmeia e faróis de neblina, e a placa Mercosul.
+
 ### Logo
 
 A logo está em PNG na pasta `assets/`:
@@ -240,6 +264,8 @@ index.html         a tela
 js/nassa.js        cores da marca, vista da cidade pelas janelas e o céu
 js/cidade.js       a cidade em pixel art em volta da torre, na tela de entrada
 js/bmw.js          o quadro da BMW 335i E90 M Sport LCI (foto em pixel art)
+js/casa.js         a casa do Gabriel: garagem com o elevador, sala, cozinha e piscina
+js/e90.js          a BMW em 3D, com a lateral da foto, para a garagem
 js/world.js        a planta: salas, pisos, fachada de vidro e placas
 js/furniture.js    móveis e estações de trabalho
 js/                o resto do motor: bonecos, caminhos, painéis

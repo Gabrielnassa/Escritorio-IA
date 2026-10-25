@@ -282,7 +282,7 @@ class Actor {
     if (this.blinkT <= 0) { this.blink = !this.blink; this.blinkT = this.blink ? 0.12 : 2.5 + Math.random() * 4; }
 
     if (this.a.status === 'offline') {
-      this.act = 'fora do expediente';
+      this.act = this.a.boss ? 'em casa' : 'fora do expediente';
       if (!this.hidden) {
         if (!this.path.length && !this.fine) {
           const d = Math.hypot(this.x - WORLD.SPAWN.x, this.y - WORLD.SPAWN.y);
@@ -405,7 +405,7 @@ class Actor {
 
   describe() {
     const st = this.a.status;
-    if (st === 'offline')      { this.act = 'fora do expediente'; return; }
+    if (st === 'offline')      { this.act = this.a.boss ? 'em casa' : 'fora do expediente'; return; }
     if (this.microBreak > 0)   { this.act = 'pegando um café'; return; }
     if (this.moving)           { this.act = 'indo para ' + (this.slot ? (this.slot.label || 'a estação') : 'algum lugar'); return; }
     // trabalhando num pedido de cliente: o balão diz qual (pedidos-ui.js)
@@ -618,6 +618,8 @@ function frame(now) {
   }
   // a porta do elevador abre enquanto alguém chega ou vai embora
   if (elevador) elevador.abre = Math.max(0, Math.min(1, (elevador.abre || 0) + (noElevador ? dt * 2.2 : -dt * 1.4)));
+  // com a casa do Gabriel aberta por cima, o andar segue andando mas não é desenhado
+  if (typeof CASA !== 'undefined' && CASA.aberta()) { requestAnimationFrame(frame); return; }
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -1103,6 +1105,10 @@ function openAgent(id) {
     </div>
 
     <button class="btn wide primary" id="f-sis" style="margin-top:6px">🖥️ Abrir o sistema de ${esc(a.name)}</button>
+    ${a.boss ? (a.status === 'offline'
+      ? `<div class="f-casa"><button class="btn wide" id="f-casa">🏠 Ver a casa</button>
+         <button class="btn wide primary" id="f-volta">🏢 Voltar ao escritório</button></div>`
+      : `<button class="btn wide" id="f-casa" style="margin-top:6px">🏠 Ir para casa</button>`) : ''}
 
     <div class="mactions">
       <button class="btn primary" id="f-save">Salvar</button>
@@ -1129,6 +1135,11 @@ function openAgent(id) {
     paint();
   });
   $('#f-sis').addEventListener('click', () => { closeModal(); abrirMonitor(a); });
+  if ($('#f-casa')) $('#f-casa').addEventListener('click', () => {
+    closeModal();
+    if (a.status === 'offline') abrirCasa(a, false); else irParaCasa(a);
+  });
+  if ($('#f-volta')) $('#f-volta').addEventListener('click', () => { closeModal(); voltarDeCasa(a); });
   $('#f-find').addEventListener('click', () => {
     const c = actors.get(a.id);
     if (c) { focusTile(c.x, c.y, 0.95); closeModal(); toast(`${a.name}: ${c.act}`); }
@@ -1255,6 +1266,33 @@ function setStatus(a, s) {
   const ac = actors.get(a.id);
   if (ac) { ac.releaseSlot(); ac.path = []; ac.fine = null; ac.seated = false; ac.microBreak = 0; ac._break = null; }
   ROSTER.save();
+}
+
+/* ===========================================================
+   A CASA DO GABRIEL (casa.js) — ele desce pelo elevador e chega lá
+   =========================================================== */
+function abrirCasa(a, chegando) {
+  CASA.abrir({ look: a.look, nome: a.name, chegando, aoVoltar: () => voltarDeCasa(a) });
+}
+function irParaCasa(a) {
+  setStatus(a, 'offline');
+  renderAll();
+  toast(a.name + ' está indo para casa…');
+  const ac = actors.get(a.id);
+  if (ac) { focusTile(ac.x, ac.y); cam.tz = Math.max(cam.tz, .9); }
+  // a casa abre quando ele entra no elevador (ou em 40 s, se travar no caminho)
+  const desde = performance.now();
+  const espera = setInterval(() => {
+    const b = actors.get(a.id);
+    if (a.status !== 'offline') { clearInterval(espera); return; }
+    if (!b || b.hidden || performance.now() - desde > 40000) { clearInterval(espera); abrirCasa(a, true); }
+  }, 400);
+}
+function voltarDeCasa(a) {
+  setStatus(a, 'trabalhando');
+  renderAll();
+  toast(a.name + ' voltou ao escritório e está subindo para a sala dele.');
+  focusTile(WORLD.SPAWN.x, WORLD.SPAWN.y); cam.tz = Math.max(cam.tz, .9);
 }
 
 function setAll(s) {
